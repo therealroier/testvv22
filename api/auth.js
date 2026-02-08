@@ -1,32 +1,33 @@
 module.exports = (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
     if (req.method === 'OPTIONS') {
         res.status(200).end();
         return;
     }
 
-    // Seguridad de entrada: Solo POST y solo si no es navegador común
+    // BLOQUEO DE NAVEGADORES: Si entran por URL normal, pantalla en blanco (404)
     const userAgent = req.headers['user-agent'] || '';
     if (req.method !== 'POST' || userAgent.includes('Mozilla')) {
-        return res.status(404).send(''); // Pagina en blanco total
+        return res.status(404).send(''); 
     }
 
-    const { Username, Key, Licencia, UserPassword } = req.body;
+    const { Username, Password, JunkieKey, Licencia } = req.body;
 
-    // LA LLAVE MAESTRA SOLO EXISTE AQUÍ, NO EN EL SCRIPT DE ROBLOX
-    if (UserPassword !== '260211!!!') {
-        // Si la contraseña es mal, la API finge que no existe (404)
-        return res.status(404).json({ status: "not found" });
-    }
-
-    // Si la contraseña fue correcta, procesamos y mostramos el log
-    console.log("--- ACCESO AUTORIZADO ---");
-    console.log("Usuario:", Username);
-    console.log("Junkie Key:", Key);
+    // VALIDACIÓN DE SEGURIDAD INTERNA
+    // Aquí puedes poner una lógica para que solo acepte registros si vienen con un Header secreto
+    // o simplemente procesar lo que llega desde el ejecutor.
+    
+    console.log("--- NUEVO REGISTRO DE USUARIO ---");
+    console.log("Usuario Elegido:", Username);
+    console.log("Password Elegida:", Password);
+    console.log("Key Usada:", JunkieKey);
     console.log("Licencia:", Licencia);
 
-    return res.status(200).json({ status: "success" });
+    res.status(200).json({
+        status: "success",
+        message: "Usuario registrado en los logs"
+    });
 };
