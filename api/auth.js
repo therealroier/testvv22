@@ -35,25 +35,29 @@ module.exports = async (req, res) => {
             usersCount: usersDB.length,
             newToday: usersDB.filter(u => u.regDate === t).length,
             online: onlineUsers,
-            logs: executionLogs.slice(0, 50),
-            users: usersDB
+            logs: executionLogs.slice(0, 50)
         });
     }
 
     if (action === "register") {
-        const cleanNick = nickname.trim().toLowerCase();
-        
-        const isKeyValid = await validateJunkie(license);
-        if (!isKeyValid) {
-            return res.status(403).json({ status: "error", message: "InvalidKey" });
+        if (!license || !nickname || !password) {
+            return res.status(400).json({ status: "error", message: "MissingData" });
         }
 
-        if (usersDB.some(u => u.license === license)) {
-            return res.status(403).json({ status: "error", message: "KeyUsed" });
+        const cleanNick = nickname.trim().toLowerCase();
+        
+        const licenseUsed = usersDB.some(u => u.license === license);
+        if (licenseUsed) {
+            return res.status(403).json({ status: "error", message: "KeyAlreadyLinked" });
         }
 
         if (usersDB.some(u => u.username.toLowerCase() === cleanNick)) {
             return res.status(400).json({ status: "error", message: "UserExists" });
+        }
+
+        const isKeyValid = await validateJunkie(license);
+        if (!isKeyValid) {
+            return res.status(403).json({ status: "error", message: "InvalidKey" });
         }
 
         usersDB.push({
@@ -68,18 +72,16 @@ module.exports = async (req, res) => {
 
     if (action === "login") {
         const cleanNick = nickname.trim().toLowerCase();
-        const userIndex = usersDB.findIndex(u => u.username.toLowerCase() === cleanNick && u.password === password);
+        const user = usersDB.find(u => u.username.toLowerCase() === cleanNick && u.password === password);
 
-        if (userIndex === -1) {
+        if (!user) {
             return res.status(401).json({ status: "error", message: "Invalid" });
         }
 
-        const user = usersDB[userIndex];
-        const isKeyStillActive = await validateJunkie(user.license);
-
-        if (!isKeyStillActive) {
-            usersDB.splice(userIndex, 1);
-            return res.status(403).json({ status: "error", message: "KeyExpired_UserPurged" });
+        const isKeyValid = await validateJunkie(user.license);
+        if (!isKeyValid) {
+            usersDB = usersDB.filter(u => u.username.toLowerCase() !== cleanNick);
+            return res.status(403).json({ status: "error", message: "KeyExpired" });
         }
 
         onlineStatus[user.username] = now;
