@@ -1,8 +1,5 @@
 let usersDB = []; 
 
-// Aquí pon el link directo al script que quieres que se ejecute siempre
-const FINAL_SCRIPT_URL = "https://pastefy.app/a5g4vwd3/raw";
-
 module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -19,25 +16,34 @@ module.exports = async (req, res) => {
 
     if (action === "register") {
         const exists = usersDB.find(u => u.nickname.toLowerCase() === nickname.toLowerCase());
-        if (exists) return res.status(400).json({ status: "error" });
+        if (exists) {
+            return res.status(400).json({ status: "error", message: "User already exists" });
+        }
+
         usersDB.push({ nickname, password, license });
         return res.status(200).json({ status: "success" });
     }
 
     if (action === "login") {
-        const user = usersDB.find(u => u.nickname.toLowerCase() === nickname.toLowerCase() && u.password === password);
-        if (!user) return res.status(401).json({ message: "Invalid" });
+        const userIndex = usersDB.findIndex(u => 
+            u.nickname.toLowerCase() === nickname.toLowerCase() && 
+            u.password === password
+        );
+        
+        if (userIndex === -1) {
+            return res.status(401).json({ message: "Invalid credentials" });
+        }
 
         if (keyExpired) {
-            usersDB = usersDB.filter(u => u.nickname.toLowerCase() !== nickname.toLowerCase());
-            return res.status(410).json({ message: "Expired" });
+            usersDB.splice(userIndex, 1);
+            return res.status(410).json({ message: "Expired Key" });
         }
 
         return res.status(200).json({ 
             status: "success", 
-            license: user.license,
-            scriptUrl: FINAL_SCRIPT_URL
+            license: usersDB[userIndex].license
         });
     }
+
     res.status(404).send('');
 };
