@@ -1,79 +1,53 @@
-let usersDB = [];
-let licensesDB = [
-    { id: '1', key: 'ILLUXION-ADMIN-99', owner: 'System', isActive: true, type: 'Developer', expiryDate: '2027-01-01' }
-];
-let executionLogs = [];
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ message: "Method not allowed" });
+  }
 
-const FINAL_SCRIPT = "https://pastefy.app/a5g4vwd3/raw";
+  const { action, nickname, password, license } = req.body;
+  const authHeader = req.headers.authorization;
 
-module.exports = async (req, res) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  // Validación de Seguridad
+  if (authHeader !== 'Bearer DZisthegoat') {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
 
-    if (req.method === 'OPTIONS') return res.status(200).end();
+  // --- BASE DE DATOS MOCK (Aquí deberías conectar MongoDB/Supabase) ---
+  // Para este ejemplo, usaremos lógica simulada:
+  
+  switch (action) {
+    case "register":
+      console.log(`Registrando: ${nickname} con licencia: ${license}`);
+      
+      // Simulación: Si el nombre es 'admin', decir que ya existe
+      if (nickname === "admin") {
+        return res.status(400).json({ message: "NicknameTaken" });
+      }
+      
+      // Simulación: Si la licencia es '123', decir que ya está usada
+      if (license === "123") {
+        return res.status(400).json({ message: "LicenseUsed" });
+      }
 
-    const authHeader = req.headers['authorization'];
-    if (authHeader !== 'Bearer DZisthegoat') {
-        return res.status(403).json({ message: "Forbidden" });
-    }
+      return res.status(200).json({ message: "RegisteredSuccessfully" });
 
-    const { action, nickname, password, license } = req.body;
-    const clientIp = req.headers['x-forwarded-for'] || '0.0.0.0';
-
-    if (action === "fetch_all") {
-        return res.status(200).json({ users: usersDB, licenses: licensesDB, logs: executionLogs });
-    }
-
-    if (action === "register") {
-        const cleanNick = nickname.trim().toLowerCase();
-        
-        // CORRECCIÓN: Verificar si el nombre ya existe de forma segura
-        const userExists = usersDB.some(u => u.username.toLowerCase() === cleanNick);
-        if (userExists) {
-            return res.status(400).json({ status: "error", message: "UserExists" });
-        }
-
-        // Verificar si la licencia ya está en uso por otra persona
-        const licenseUsed = usersDB.some(u => u.key === license);
-        if (licenseUsed) {
-            return res.status(400).json({ status: "error", message: "LicenseUsed" });
-        }
-
-        const newUser = { 
-            id: Math.random().toString(36).substr(2, 9),
-            username: nickname.trim(), 
-            password: password, 
-            key: license, 
-            timestamp: new Date().toISOString(),
-            isActive: true 
-        };
-
-        usersDB.push(newUser);
-        return res.status(200).json({ status: "success" });
-    }
-
-    if (action === "login") {
-        const cleanNick = nickname.trim().toLowerCase();
-        const user = usersDB.find(u => u.username.toLowerCase() === cleanNick && u.password === password);
-        
-        if (!user) return res.status(401).json({ status: "error", message: "Invalid" });
-
-        executionLogs.unshift({
-            id: Math.random().toString(36).substr(2, 5),
-            username: user.username,
-            timestamp: new Date().toISOString(),
-            status: 'Authorized',
-            ip: clientIp
+    case "login":
+      console.log(`Login intento: ${nickname}`);
+      
+      // IMPORTANTE: Aquí devuelves los datos que el Lua necesita para Junkie
+      if (nickname && password) {
+        return res.status(200).json({
+          status: "success",
+          license: license || "KEY-PRO-SIMULATED-123", // La licencia guardada
+          script: "print('¡Script de Tsunami Cargado con Éxito!')" // El loadstring final
         });
+      }
+      return res.status(401).json({ message: "InvalidCredentials" });
 
-        return res.status(200).json({ status: "success", license: user.key, script: FINAL_SCRIPT });
-    }
+    case "delete":
+      console.log(`Eliminando cuenta por expiración: ${nickname}`);
+      return res.status(200).json({ message: "AccountPurged" });
 
-    if (action === "delete") {
-        usersDB = usersDB.filter(u => u.username.toLowerCase() !== nickname.toLowerCase());
-        return res.status(200).json({ status: "success" });
-    }
-
-    res.status(404).json({ error: "ActionNotFound" });
-};
+    default:
+      return res.status(400).json({ message: "InvalidAction" });
+  }
+}
