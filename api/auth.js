@@ -12,11 +12,6 @@ module.exports = async (req, res) => {
         return res.status(403).json({ message: "Forbidden" });
     }
 
-    const userAgent = req.headers['user-agent'] || '';
-    if (req.method !== 'POST' || userAgent.includes('Mozilla')) {
-        return res.status(404).send(''); 
-    }
-
     const { action, nickname, password, license, keyExpired } = req.body;
 
     if (action === "register") {
@@ -25,25 +20,20 @@ module.exports = async (req, res) => {
             return res.status(400).json({ status: "error", message: "User already exists" });
         }
 
-        usersDB.push({
-            nickname,
-            password,
-            license
-        });
-
+        usersDB.push({ nickname, password, license });
         return res.status(200).json({ status: "success" });
     }
 
     if (action === "login") {
-        const userIndex = usersDB.findIndex(u => u.nickname === nickname && u.password === password);
+        const userIndex = usersDB.findIndex(u => u.nickname.toLowerCase() === nickname.toLowerCase() && u.password === password);
         
         if (userIndex === -1) {
-            return res.status(401).json({ message: "Invalid credentials" });
+            return res.status(401).json({ status: "error", message: "Invalid credentials or DB Reset" });
         }
 
         if (keyExpired) {
             usersDB.splice(userIndex, 1);
-            return res.status(410).json({ message: "Expired Key" });
+            return res.status(410).json({ status: "expired", message: "Key removed from DB" });
         }
 
         return res.status(200).json({ 
@@ -52,5 +42,5 @@ module.exports = async (req, res) => {
         });
     }
 
-    res.status(404).send('');
+    res.status(404).json({ status: "error", message: "Endpoint not found" });
 };
