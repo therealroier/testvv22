@@ -28,14 +28,6 @@ module.exports = async (req, res) => {
     const now = Date.now();
     const t = today();
 
-    // ACCIÓN PARA REINICIAR TODO SI SE TRABA (Escribir esto en consola o Postman)
-    if (action === "force_reset") {
-        usersDB = [];
-        executionLogs = [];
-        onlineStatus = {};
-        return res.status(200).json({ status: "success", message: "Database Cleared" });
-    }
-
     if (action === "fetch_all") {
         const onlineUsers = Object.keys(onlineStatus).filter(name => now - onlineStatus[name] < 40000).length;
         return res.status(200).json({
@@ -51,33 +43,28 @@ module.exports = async (req, res) => {
     if (action === "register") {
         const cleanNick = nickname.trim().toLowerCase();
         
-        // 1. Validar la Key primero (Si la key no sirve, no hacemos nada)
+        const existingUserIndex = usersDB.findIndex(u => u.username.toLowerCase() === cleanNick);
+        
+        if (existingUserIndex !== -1) {
+            const oldUser = usersDB[existingUserIndex];
+            const isOldKeyStillActive = await validateJunkie(oldUser.license);
+            
+            if (!isOldKeyStillActive) {
+                usersDB.splice(existingUserIndex, 1);
+            } else {
+                return res.status(400).json({ status: "error", message: "UserExists" });
+            }
+        }
+
+        if (usersDB.some(u => u.license === license)) {
+            return res.status(403).json({ status: "error", message: "KeyUsed" });
+        }
+
         const isNewKeyValid = await validateJunkie(license);
         if (!isNewKeyValid) {
             return res.status(403).json({ status: "error", message: "InvalidKey" });
         }
 
-        // 2. Limpieza agresiva de nombres duplicados
-        const existingIndex = usersDB.findIndex(u => u.username.toLowerCase() === cleanNick);
-        if (existingIndex !== -1) {
-            const oldUser = usersDB[existingIndex];
-            const isOldKeyActive = await validateJunkie(oldUser.license);
-            
-            // Si la key vieja ya no es activa, borramos al usuario viejo automáticamente
-            if (!isOldKeyActive) {
-                usersDB.splice(existingIndex, 1);
-            } else {
-                // Si la key vieja SIGUE activa, entonces el nombre realmente está ocupado
-                return res.status(400).json({ status: "error", message: "UserExists" });
-            }
-        }
-
-        // 3. Verificar si la Key ya está vinculada a OTRA cuenta
-        if (usersDB.some(u => u.license === license)) {
-            return res.status(403).json({ status: "error", message: "KeyUsed" });
-        }
-
-        // 4. Registrar nuevo usuario
         usersDB.push({
             username: nickname.trim(),
             password: password,
@@ -100,7 +87,7 @@ module.exports = async (req, res) => {
         const isKeyStillActive = await validateJunkie(user.license);
 
         if (!isKeyStillActive) {
-            usersDB.splice(userIndex, 1); // Borrar si la key caducó
+            usersDB.splice(userIndex, 1);
             return res.status(403).json({ status: "error", message: "KeyExpired_UserPurged" });
         }
 
