@@ -33,7 +33,7 @@ module.exports = async (req, res) => {
         const userIndex = usersDB.findIndex(u => u.nickname === nickname && u.password === password);
         
         if (userIndex === -1) {
-            return res.status(401).json({ message: "Invalid credentials" });
+            return res.status(401).json({ message: "Invalid Credentials" });
         }
 
         if (keyExpired) {
