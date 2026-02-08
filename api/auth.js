@@ -14,7 +14,7 @@ module.exports = async (req, res) => {
         return res.status(403).json({ message: "Forbidden" });
     }
 
-    const { action, nickname, password, license, hwid, keyExpired } = req.body;
+    const { action, nickname, password, license, hwid } = req.body;
 
     if (action === "register") {
         const exists = usersDB.find(u => u.nickname.toLowerCase() === nickname.toLowerCase());
@@ -30,14 +30,8 @@ module.exports = async (req, res) => {
         if (!user) return res.status(401).json({ message: "Invalid Credentials" });
         if (user.hwid !== hwid) return res.status(403).json({ message: "HWID Mismatch" });
 
-        if (keyExpired) {
-            usersDB = usersDB.filter(u => u.nickname !== nickname);
-            return res.status(410).json({ message: "Expired" });
-        }
-
         return res.status(200).json({ 
             status: "success", 
-            license: user.license, 
             scriptUrl: UNIQUE_SCRIPT_URL 
         });
     }
