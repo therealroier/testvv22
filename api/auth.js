@@ -11,7 +11,7 @@ module.exports = async (req, res) => {
 
     const authHeader = req.headers['authorization'];
     if (authHeader !== 'Bearer DZisthegoat') {
-        return res.status(403).json({ message: "Forbidden" });
+        return res.status(403).json({ message: "error" });
     }
 
     const { action, nickname, password, license, statusFromJunkie } = req.body;
