@@ -1,7 +1,6 @@
 module.exports = (req, res) => {
-    // Configuración de CORS
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS, GET');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') {
@@ -9,33 +8,25 @@ module.exports = (req, res) => {
         return;
     }
 
-    // --- PROTECCIÓN CON CONTRASEÑA PARA EL NAVEGADOR ---
-    const auth = req.headers.authorization;
-    
-    // Credenciales: Usuario: admin | Pass: 260211!!!
-    // El string en base64 de "admin:260211!!!" es "YWRtaW46MjYwMjExISEh"
-    if (!auth || auth !== 'Basic YWRtaW46MjYwMjExISEh') {
-        res.setHeader('WWW-Authenticate', 'Basic realm="Acceso Protegido"');
-        return res.status(401).send('Acceso denegado. Se requiere contraseña.');
+    // Seguridad de entrada: Solo POST y solo si no es navegador común
+    const userAgent = req.headers['user-agent'] || '';
+    if (req.method !== 'POST' || userAgent.includes('Mozilla')) {
+        return res.status(404).send(''); // Pagina en blanco total
     }
 
-    // --- SI LA CONTRASEÑA ES CORRECTA, MOSTRAR CONTENIDO ---
-    if (req.method === 'POST') {
-        const { Username, Key, Licencia, Password } = req.body;
+    const { Username, Key, Licencia, UserPassword } = req.body;
 
-        // Validación extra de la contraseña que viene del TextBox de Roblox
-        if (Password !== '260211!!!') {
-            return res.status(403).json({ status: "error", message: "Password de usuario incorrecta" });
-        }
-
-        console.log("--- NUEVA ENTRADA ---");
-        console.log("Usuario:", Username);
-        console.log("Key:", Key);
-        console.log("Licencia:", Licencia);
-
-        return res.status(200).json({ status: "success", user: Username });
-    } else {
-        // Esto es lo que verás en el navegador después de poner la contraseña
-        res.status(200).send('<h1>Logs de la API activos</h1><p>Esperando peticiones POST desde Roblox...</p>');
+    // LA LLAVE MAESTRA SOLO EXISTE AQUÍ, NO EN EL SCRIPT DE ROBLOX
+    if (UserPassword !== '260211!!!') {
+        // Si la contraseña es mal, la API finge que no existe (404)
+        return res.status(404).json({ status: "not found" });
     }
+
+    // Si la contraseña fue correcta, procesamos y mostramos el log
+    console.log("--- ACCESO AUTORIZADO ---");
+    console.log("Usuario:", Username);
+    console.log("Junkie Key:", Key);
+    console.log("Licencia:", Licencia);
+
+    return res.status(200).json({ status: "success" });
 };
