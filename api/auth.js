@@ -1,53 +1,136 @@
-let usersDB = []; 
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local lp = Players.LocalPlayer
+local PlayerGui = lp:WaitForChild("PlayerGui")
 
-const FINAL_SCRIPT = "https://pastefy.app/a5g4vwd3/raw";
+local Junkie = loadstring(game:HttpGet("https://jnkie.com/sdk/library.lua"))()
+Junkie.service = "Silent"
+Junkie.identifier = "1009035"
+Junkie.provider = "Silent"
+Junkie.api_key = "4f3ef6b9-e9ec-4ef1-a8bb-324192dd92df"
 
-module.exports = async (req, res) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+local API_URL = "https://testvv22.vercel.app/api/auth"
+local API_KEY = "Bearer DZisthegoat"
 
-    if (req.method === 'OPTIONS') return res.status(200).end();
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "DZ_Auth_V3"
+ScreenGui.Parent = PlayerGui
 
-    const authHeader = req.headers['authorization'];
-    if (authHeader !== 'Bearer DZisthegoat') {
-        return res.status(403).json({ message: "Forbidden" });
-    }
+local Main = Instance.new("Frame")
+Main.Size = UDim2.new(0, 320, 0, 520)
+Main.Position = UDim2.new(0.5, -160, 0.5, -260)
+Main.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+Main.BorderSizePixel = 0
+Main.Parent = ScreenGui
 
-    const { action, nickname, password, license } = req.body;
+local function CreateInput(placeholder, pos)
+    local Box = Instance.new("TextBox")
+    Box.Size = UDim2.new(0, 260, 0, 42)
+    Box.Position = UDim2.new(0.5, -130, 0, pos)
+    Box.PlaceholderText = placeholder
+    Box.Text = ""
+    Box.BackgroundColor3 = Color3.fromRGB(22, 22, 22)
+    Box.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Box.Font = Enum.Font.Gotham
+    Box.TextSize = 13
+    Box.Parent = Main
+    local C = Instance.new("UICorner")
+    C.CornerRadius = UDim.new(0, 6)
+    C.Parent = Box
+    return Box
+end
 
-    if (action === "ping") {
-        return res.status(200).json({ status: "alive", users: usersDB.length });
-    }
+local function CreateBtn(text, pos, color)
+    local B = Instance.new("TextButton")
+    B.Size = UDim2.new(0, 260, 0, 42)
+    B.Position = UDim2.new(0.5, -130, 0, pos)
+    B.Text = text
+    B.BackgroundColor3 = color
+    B.TextColor3 = Color3.fromRGB(255, 255, 255)
+    B.Font = Enum.Font.GothamBold
+    B.TextSize = 13
+    B.Parent = Main
+    local C = Instance.new("UICorner")
+    C.CornerRadius = UDim.new(0, 6)
+    C.Parent = B
+    return B
+end
 
-    if (action === "register") {
-        const lowerNick = nickname.toLowerCase();
-        if (usersDB.find(u => u.nickname.toLowerCase() === lowerNick)) {
-            return res.status(400).json({ status: "error", message: "UserExists" });
-        }
-        if (usersDB.find(u => u.license === license)) {
-            return res.status(400).json({ status: "error", message: "LicenseUsed" });
-        }
-        usersDB.push({ nickname, password, license });
-        return res.status(200).json({ status: "success" });
-    }
+local LogNick = CreateInput("Nickname", 45)
+local LogPass = CreateInput("Password", 95)
+local LogBtn = CreateBtn("LOGIN", 150, Color3.fromRGB(0, 120, 255))
 
-    if (action === "login") {
-        const lowerNick = nickname.toLowerCase();
-        const user = usersDB.find(u => u.nickname.toLowerCase() === lowerNick && u.password === password);
-        if (!user) return res.status(401).json({ status: "error" });
-        return res.status(200).json({ 
-            status: "success", 
-            license: user.license,
-            script: FINAL_SCRIPT
-        });
-    }
+local RegNick = CreateInput("Nickname", 255)
+local RegPass = CreateInput("Password", 305)
+local RegLic = CreateInput("License Key", 355)
+local RegBtn = CreateBtn("CREATE ACCOUNT", 410, Color3.fromRGB(40, 180, 100))
 
-    if (action === "delete") {
-        const lowerNick = nickname.toLowerCase();
-        usersDB = usersDB.filter(u => u.nickname.toLowerCase() !== lowerNick);
-        return res.status(200).json({ status: "success" });
-    }
+RegBtn.MouseButton1Click:Connect(function()
+    RegBtn.Text = "VERIFYING..."
+    local status = Junkie.check_key(RegLic.Text)
+    if status and status.valid then
+        local res = request({
+            Url = API_URL,
+            Method = "POST",
+            Headers = {["Content-Type"] = "application/json", ["Authorization"] = API_KEY},
+            Body = HttpService:JSONEncode({
+                action = "register",
+                nickname = RegNick.Text,
+                password = RegPass.Text,
+                license = RegLic.Text
+            })
+        })
+        if res.StatusCode == 200 then
+            RegBtn.Text = "REGISTERED ✅"
+        else
+            RegBtn.Text = "NICKNAME TAKEN"
+        end
+    else
+        RegBtn.Text = "INVALID JUNKIE KEY"
+    end
+    task.wait(2)
+    RegBtn.Text = "CREATE ACCOUNT"
+end)
 
-    res.status(404).send('');
-};
+LogBtn.MouseButton1Click:Connect(function()
+    LogBtn.Text = "CONNECTING..."
+    local res = request({
+        Url = API_URL,
+        Method = "POST",
+        Headers = {["Content-Type"] = "application/json", ["Authorization"] = API_KEY},
+        Body = HttpService:JSONEncode({
+            action = "login",
+            nickname = LogNick.Text,
+            password = LogPass.Text
+        })
+    })
+
+    if res.StatusCode == 200 then
+        local data = HttpService:JSONDecode(res.Body)
+        local check = Junkie.check_key(data.license)
+        
+        if check and check.valid then
+            LogBtn.Text = "WELCOME"
+            ScreenGui:Destroy()
+            loadstring(game:HttpGet(data.script))()
+        else
+            -- SOLO AQUÍ SE ELIMINA SI JUNKIE DICE QUE NO ES VALIDA
+            LogBtn.Text = "KEY EXPIRED - RESETTING..."
+            request({
+                Url = API_URL,
+                Method = "POST",
+                Headers = {["Content-Type"] = "application/json", ["Authorization"] = API_KEY},
+                Body = HttpService:JSONEncode({
+                    action = "delete",
+                    nickname = LogNick.Text
+                })
+            })
+            task.wait(1)
+            LogBtn.Text = "USER DELETED. REGISTER AGAIN"
+        end
+    else
+        LogBtn.Text = "WRONG CREDENTIALS"
+    end
+    task.wait(2)
+    LogBtn.Text = "LOGIN"
+end)
