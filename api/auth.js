@@ -5,10 +5,11 @@ const FINAL_SCRIPT = "https://pastefy.app/a5g4vwd3/raw";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
+// Función interna para validar con Junkie desde el servidor
 async function validateJunkie(license) {
     try {
         const response = await fetch(`https://jnkie.com/api/v1/keys/view?key=${license}`, {
-            headers: { "Authorization": "1009035" }
+            headers: { "Authorization": "1009035" } // Tu identifier
         });
         const data = await response.json();
         return data && data.status === "active"; 
@@ -40,30 +41,22 @@ module.exports = async (req, res) => {
     }
 
     if (action === "register") {
-        if (!license || !nickname || !password) {
-            return res.status(400).json({ status: "error", message: "MissingData" });
-        }
-
         const cleanNick = nickname.trim().toLowerCase();
         
-        const licenseUsed = usersDB.some(u => u.license === license);
-        if (licenseUsed) {
-            return res.status(403).json({ status: "error", message: "KeyAlreadyLinked" });
+        // 1. Verificar si la licencia es válida en Junkie antes de registrar
+        const isKeyValid = await validateJunkie(license);
+        if (!isKeyValid) {
+            return res.status(403).json({ status: "error", message: "InvalidKey" });
         }
 
         if (usersDB.some(u => u.username.toLowerCase() === cleanNick)) {
             return res.status(400).json({ status: "error", message: "UserExists" });
         }
 
-        const isKeyValid = await validateJunkie(license);
-        if (!isKeyValid) {
-            return res.status(403).json({ status: "error", message: "InvalidKey" });
-        }
-
         usersDB.push({
             username: nickname.trim(),
             password: password,
-            license: license,
+            license: license, // Guardamos la key para validar en cada login
             regDate: t
         });
 
@@ -78,8 +71,10 @@ module.exports = async (req, res) => {
             return res.status(401).json({ status: "error", message: "Invalid" });
         }
 
+        // 2. Verificar si la licencia SIGUE activa al intentar loguear
         const isKeyValid = await validateJunkie(user.license);
         if (!isKeyValid) {
+            // Si la key caducó, lo sacamos y podemos borrarlo si prefieres
             usersDB = usersDB.filter(u => u.username.toLowerCase() !== cleanNick);
             return res.status(403).json({ status: "error", message: "KeyExpired" });
         }
