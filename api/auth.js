@@ -1,10 +1,6 @@
 let usersDB = []; 
 
-const SCRIPTS_BY_GAME = {
-    "135856908115931": "https://raw.githubusercontent.com/therealroier/ScriptDz/heads/main/DUELS",
-    "74084441161738": "https://raw.githubusercontent.com/therealroier/ScriptDz/heads/main/DUELS",
-    "131117978948830": "https://raw.githubusercontent.com/therealroier/ScriptDz/heads/main/DUELS"
-};
+const UNIQUE_SCRIPT_URL = "https://pastefy.app/ZLouT7wu/raw";
 
 module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -18,7 +14,7 @@ module.exports = async (req, res) => {
         return res.status(403).json({ message: "Forbidden" });
     }
 
-    const { action, nickname, password, license, hwid, placeId, keyExpired } = req.body;
+    const { action, nickname, password, license, hwid, keyExpired } = req.body;
 
     if (action === "register") {
         const exists = usersDB.find(u => u.nickname.toLowerCase() === nickname.toLowerCase());
@@ -39,13 +35,10 @@ module.exports = async (req, res) => {
             return res.status(410).json({ message: "Expired" });
         }
 
-        const scriptUrl = SCRIPTS_BY_GAME[String(placeId)];
-        if (!scriptUrl) return res.status(404).json({ message: "Game not supported" });
-
         return res.status(200).json({ 
             status: "success", 
             license: user.license, 
-            scriptUrl: scriptUrl 
+            scriptUrl: UNIQUE_SCRIPT_URL 
         });
     }
 
