@@ -23,7 +23,6 @@ module.exports = async (req, res) => {
         });
     }
 
-    // ESTO ES LO QUE LEE TU DASHBOARD
     if (action === "fetch_all") {
         return res.status(200).json({
             users: usersDB,
@@ -36,16 +35,16 @@ module.exports = async (req, res) => {
 
     if (action === "register") {
         const lowerNick = nickname.toLowerCase();
-        if (usersDB.find(u => u.nickname.toLowerCase() === lowerNick)) {
+        if (usersDB.find(u => u.username && u.username.toLowerCase() === lowerNick)) {
             return res.status(400).json({ status: "error", message: "UserExists" });
         }
-        if (usersDB.find(u => u.license === license)) {
+        if (usersDB.find(u => u.key === license)) {
             return res.status(400).json({ status: "error", message: "LicenseUsed" });
         }
         
         usersDB.push({ 
             id: Math.random().toString(36).substr(2, 9),
-            username: nickname, // Lo guardamos como username para que el Dashboard lo lea bien
+            username: nickname, 
             password: password, 
             key: license, 
             timestamp: new Date().toISOString(),
@@ -68,12 +67,9 @@ module.exports = async (req, res) => {
     }
 
     if (action === "delete") {
-        if (statusFromJunkie === "expired") {
-            const lowerNick = nickname.toLowerCase();
-            usersDB = usersDB.filter(u => u.username.toLowerCase() !== lowerNick);
-            return res.status(200).json({ status: "success", message: "User cleaned because key expired" });
-        }
-        return res.status(400).json({ status: "error", message: "Delete refused: Key still valid" });
+        const lowerNick = nickname.toLowerCase();
+        usersDB = usersDB.filter(u => u.username.toLowerCase() !== lowerNick);
+        return res.status(200).json({ status: "success", message: "User cleaned" });
     }
 
     res.status(404).send('');
