@@ -38,7 +38,7 @@ module.exports = async (req, res) => {
 
         if (keyExpired) {
             usersDB.splice(userIndex, 1);
-            return res.status(410).json({ message: "License expired" });
+            return res.status(410).json({ message: "Expired Key" });
         }
 
         return res.status(200).json({ 
