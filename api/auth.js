@@ -50,7 +50,7 @@ module.exports = async (req, res) => {
     }
 
     if (action === "delete") {
-        // La API solo borra si el script confirma que Junkie dijo que es inválida
+
         if (statusFromJunkie === "expired") {
             const lowerNick = nickname.toLowerCase();
             usersDB = usersDB.filter(u => u.nickname.toLowerCase() !== lowerNick);
