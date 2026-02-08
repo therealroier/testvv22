@@ -1,1 +1,19 @@
-
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Bebesona API Status</title>
+    <style>
+        body { background: #050505; color: #00ffcc; font-family: 'Courier New', monospace; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .status-box { border: 2px solid #00ffcc; padding: 30px; border-radius: 5px; box-shadow: 0 0 15px #00ffcc; text-align: center; }
+        .blink { animation: blinker 1.5s linear infinite; }
+        @keyframes blinker { 50% { opacity: 0; } }
+    </style>
+</head>
+<body>
+    <div class="status-box">
+        <h1>SISTEMA <span class="blink">ONLINE</span></h1>
+        <p>Endpoint: /api/auth</p>
+    </div>
+</body>
+</html>
