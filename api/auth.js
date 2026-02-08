@@ -23,6 +23,17 @@ module.exports = async (req, res) => {
         });
     }
 
+    // ESTO ES LO QUE LEE TU DASHBOARD
+    if (action === "fetch_all") {
+        return res.status(200).json({
+            users: usersDB,
+            config: {
+                total: usersDB.length,
+                lastUpdate: new Date().toISOString()
+            }
+        });
+    }
+
     if (action === "register") {
         const lowerNick = nickname.toLowerCase();
         if (usersDB.find(u => u.nickname.toLowerCase() === lowerNick)) {
@@ -32,28 +43,34 @@ module.exports = async (req, res) => {
             return res.status(400).json({ status: "error", message: "LicenseUsed" });
         }
         
-        usersDB.push({ nickname, password, license });
+        usersDB.push({ 
+            id: Math.random().toString(36).substr(2, 9),
+            username: nickname, // Lo guardamos como username para que el Dashboard lo lea bien
+            password: password, 
+            key: license, 
+            timestamp: new Date().toISOString(),
+            isActive: true 
+        });
         return res.status(200).json({ status: "success" });
     }
 
     if (action === "login") {
         const lowerNick = nickname.toLowerCase();
-        const user = usersDB.find(u => u.nickname.toLowerCase() === lowerNick && u.password === password);
+        const user = usersDB.find(u => u.username.toLowerCase() === lowerNick && u.password === password);
         
         if (!user) return res.status(401).json({ status: "error" });
 
         return res.status(200).json({ 
             status: "success", 
-            license: user.license,
+            license: user.key,
             script: FINAL_SCRIPT
         });
     }
 
     if (action === "delete") {
-
         if (statusFromJunkie === "expired") {
             const lowerNick = nickname.toLowerCase();
-            usersDB = usersDB.filter(u => u.nickname.toLowerCase() !== lowerNick);
+            usersDB = usersDB.filter(u => u.username.toLowerCase() !== lowerNick);
             return res.status(200).json({ status: "success", message: "User cleaned because key expired" });
         }
         return res.status(400).json({ status: "error", message: "Delete refused: Key still valid" });
