@@ -1,101 +1,54 @@
-let usersDB = [];
-let licensesDB = [
-  { id: '1', key: 'ILLUXION-ADMIN-99', owner: 'System', isActive: true, type: 'Developer', expiryDate: '2030-01-01' }
-];
+let usersDB = []; // Se guardan {username, password, key}
 let executionLogs = [];
 const FINAL_SCRIPT = "loadstring(game:HttpGet('https://pastefy.app/a5g4vwd3/raw'))()";
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
-
-  const authHeader = req.headers['authorization'];
-  if (authHeader !== 'Bearer DZisthegoat') {
-    return res.status(403).json({ message: "Forbidden Access" });
-  }
 
   const { action, nickname, password, license } = req.body;
   const clientIp = req.headers['x-forwarded-for'] || '0.0.0.0';
 
+  // DASHBOARD: Obtener todo
   if (action === "fetch_all") {
-    return res.status(200).json({ 
-      users: usersDB, 
-      licenses: licensesDB, 
-      logs: executionLogs 
-    });
+    return res.status(200).json({ users: usersDB, logs: executionLogs });
   }
 
+  // ROBLOX: Registro (Guarda usuario, pass y key)
   if (action === "register") {
-    const cleanNick = nickname.trim().toLowerCase();
-    
-    const userExists = usersDB.some(u => u.username.toLowerCase() === cleanNick);
+    const userExists = usersDB.some(u => u.username === nickname);
     if (userExists) return res.status(400).json({ status: "error", message: "UserExists" });
 
-    const licenseUsed = usersDB.some(u => u.key === license);
-    if (licenseUsed) return res.status(400).json({ status: "error", message: "LicenseUsed" });
-
-    const newUser = {
-      id: Math.random().toString(36).substr(2, 9),
-      username: nickname.trim(),
+    usersDB.push({
+      username: nickname,
       password: password,
       key: license,
-      timestamp: new Date().toISOString(),
-      isActive: true
-    };
-
-    usersDB.push(newUser);
+      timestamp: new Date().toISOString()
+    });
     return res.status(200).json({ status: "success" });
   }
 
+  // ROBLOX: Login (Valida y sube Stat)
   if (action === "login") {
-    const cleanNick = nickname.trim().toLowerCase();
-    const user = usersDB.find(u => u.username.toLowerCase() === cleanNick && u.password === password);
+    const user = usersDB.find(u => u.username === nickname && u.password === password);
 
-    if (!user) {
+    if (user) {
+      // Si el login es correcto, registramos la estadística
       executionLogs.unshift({
-        id: Math.random().toString(36).substr(2, 5),
-        username: nickname || 'Unknown',
+        username: user.username,
         timestamp: new Date().toISOString(),
-        status: 'Unauthorized',
         ip: clientIp
       });
-      return res.status(401).json({ status: "error", message: "Invalid" });
+
+      return res.status(200).json({ 
+        status: "success", 
+        script: FINAL_SCRIPT 
+      });
     }
-
-    executionLogs.unshift({
-      id: Math.random().toString(36).substr(2, 5),
-      username: user.username,
-      timestamp: new Date().toISOString(),
-      status: 'Authorized',
-      ip: clientIp
-    });
-
-    return res.status(200).json({ 
-      status: "success", 
-      license: user.key, 
-      script: FINAL_SCRIPT 
-    });
-  }
-
-  if (action === "delete") {
-    usersDB = usersDB.filter(u => u.username.toLowerCase() !== nickname.toLowerCase());
-    return res.status(200).json({ status: "success" });
-  }
-
-  if (action === "create_license") {
-    const newLicense = {
-      id: Math.random().toString(36).substr(2, 5),
-      key: license, // La key generada desde el dashboard
-      owner: 'Unassigned',
-      isActive: true,
-      type: 'Standard',
-      expiryDate: '2027-01-01'
-    };
-    licensesDB.push(newLicense);
-    return res.status(200).json({ status: "success" });
+    return res.status(401).json({ status: "error", message: "Invalid" });
   }
 
   res.status(404).json({ error: "ActionNotFound" });
