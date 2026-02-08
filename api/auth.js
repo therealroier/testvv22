@@ -43,26 +43,17 @@ module.exports = async (req, res) => {
     if (action === "register") {
         const cleanNick = nickname.trim().toLowerCase();
         
-        const existingUserIndex = usersDB.findIndex(u => u.username.toLowerCase() === cleanNick);
-        
-        if (existingUserIndex !== -1) {
-            const oldUser = usersDB[existingUserIndex];
-            const isOldKeyStillActive = await validateJunkie(oldUser.license);
-            
-            if (!isOldKeyStillActive) {
-                usersDB.splice(existingUserIndex, 1);
-            } else {
-                return res.status(400).json({ status: "error", message: "UserExists" });
-            }
+        const isKeyValid = await validateJunkie(license);
+        if (!isKeyValid) {
+            return res.status(403).json({ status: "error", message: "InvalidKey" });
         }
 
         if (usersDB.some(u => u.license === license)) {
             return res.status(403).json({ status: "error", message: "KeyUsed" });
         }
 
-        const isNewKeyValid = await validateJunkie(license);
-        if (!isNewKeyValid) {
-            return res.status(403).json({ status: "error", message: "InvalidKey" });
+        if (usersDB.some(u => u.username.toLowerCase() === cleanNick)) {
+            return res.status(400).json({ status: "error", message: "UserExists" });
         }
 
         usersDB.push({
