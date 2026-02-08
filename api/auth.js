@@ -1,6 +1,7 @@
 module.exports = (req, res) => {
+    // Configuración de CORS
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS, GET');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') {
@@ -8,34 +9,33 @@ module.exports = (req, res) => {
         return;
     }
 
-    // BLOQUEO DE NAVEGADORES: Si no es una petición POST de un ejecutor, mostramos 404
-    const userAgent = req.headers['user-agent'] || '';
-    if (!userAgent.includes('Roblox') && req.method !== 'POST') {
-        res.setHeader('Content-Type', 'text/html');
-        return res.status(404).send('<html><head><title>404 Not Found</title></head><body></body></html>');
+    // --- PROTECCIÓN CON CONTRASEÑA PARA EL NAVEGADOR ---
+    const auth = req.headers.authorization;
+    
+    // Credenciales: Usuario: admin | Pass: 260211!!!
+    // El string en base64 de "admin:260211!!!" es "YWRtaW46MjYwMjExISEh"
+    if (!auth || auth !== 'Basic YWRtaW46MjYwMjExISEh') {
+        res.setHeader('WWW-Authenticate', 'Basic realm="Acceso Protegido"');
+        return res.status(401).send('Acceso denegado. Se requiere contraseña.');
     }
 
+    // --- SI LA CONTRASEÑA ES CORRECTA, MOSTRAR CONTENIDO ---
     if (req.method === 'POST') {
-        const { Username, Key, Licencia, UserPassword } = req.body;
-        const authHeader = req.headers['authorization'];
+        const { Username, Key, Licencia, Password } = req.body;
 
-        // VALIDACIÓN 1: API KEY (DZisthegoat)
-        if (!authHeader || authHeader !== 'Bearer DZisthegoat') {
-            return res.status(401).json({ status: "error", message: "Invalid API Key" });
+        // Validación extra de la contraseña que viene del TextBox de Roblox
+        if (Password !== '260211!!!') {
+            return res.status(403).json({ status: "error", message: "Password de usuario incorrecta" });
         }
 
-        // VALIDACIÓN 2: PASSWORD DEL USUARIO (260211!!!)
-        if (UserPassword !== '260211!!!') {
-            return res.status(403).json({ status: "error", message: "Wrong Master Password" });
-        }
-
-        console.log("--- NUEVA ENTRADA AUTORIZADA ---");
+        console.log("--- NUEVA ENTRADA ---");
         console.log("Usuario:", Username);
         console.log("Key:", Key);
         console.log("Licencia:", Licencia);
 
-        res.status(200).json({ status: "success", user: Username });
+        return res.status(200).json({ status: "success", user: Username });
     } else {
-        res.status(405).json({ message: "Method Not Allowed" });
+        // Esto es lo que verás en el navegador después de poner la contraseña
+        res.status(200).send('<h1>Logs de la API activos</h1><p>Esperando peticiones POST desde Roblox...</p>');
     }
 };
