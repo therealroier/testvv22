@@ -2,9 +2,7 @@ const https = require('https');
 let usersDB = []; 
 
 const LINKS = {
-    mainScript: "https://pastefy.app/a5g4vwd3/raw",
-    extraLibrary: "https://link-de-tu-libreria.com/raw",
-    utilityTool: "https://otro-enlace.com/raw"
+    mainScript: "https://pastefy.app/a5g4vwd3/raw"
 };
 
 const DISCORD_WEBHOOK = "/api/webhooks/1469998225472880662/fQ8_e1mjU3-lFm-WU-qIbNTQ06CXjrXeiazo_o5uNPXBwWVCrI6w-SjDStPeBjCb5B11";
