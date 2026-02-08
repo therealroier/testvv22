@@ -12,14 +12,15 @@ module.exports = async (req, res) => {
         return res.status(403).json({ message: "Forbidden" });
     }
 
-    const { action, nickname, password, license, keyExpired } = req.body;
+    const { action, nickname, password, license } = req.body;
 
     if (action === "ping") {
-        return res.status(200).json({ status: "alive" });
+        return res.status(200).json({ status: "alive", users: usersDB.length });
     }
 
     if (action === "register") {
-        const exists = usersDB.find(u => u.nickname.toLowerCase() === nickname.toLowerCase());
+        const lowerNick = nickname.toLowerCase();
+        const exists = usersDB.find(u => u.nickname.toLowerCase() === lowerNick);
         if (exists) {
             return res.status(400).json({ status: "error", message: "Exists" });
         }
@@ -28,20 +29,16 @@ module.exports = async (req, res) => {
     }
 
     if (action === "login") {
-        const userIndex = usersDB.findIndex(u => u.nickname.toLowerCase() === nickname.toLowerCase() && u.password === password);
+        const lowerNick = nickname.toLowerCase();
+        const user = usersDB.find(u => u.nickname.toLowerCase() === lowerNick && u.password === password);
         
-        if (userIndex === -1) {
+        if (!user) {
             return res.status(401).json({ status: "error", message: "Not Found" });
-        }
-
-        if (keyExpired === true) {
-            usersDB.splice(userIndex, 1);
-            return res.status(200).json({ status: "deleted" });
         }
 
         return res.status(200).json({ 
             status: "success", 
-            license: usersDB[userIndex].license 
+            license: user.license 
         });
     }
     res.status(404).send('');
