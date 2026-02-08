@@ -1,5 +1,3 @@
-// Base de datos temporal (Se reinicia si Vercel duerme la función)
-// Para algo permanente, usa una DB como MongoDB o Supabase.
 let usersDB = []; 
 
 module.exports = async (req, res) => {
@@ -9,43 +7,44 @@ module.exports = async (req, res) => {
 
     if (req.method === 'OPTIONS') return res.status(200).end();
 
-    const { action, username, password, junkieKey, licencia } = req.body;
+    const userAgent = req.headers['user-agent'] || '';
+    if (req.method !== 'POST' || userAgent.includes('Mozilla')) {
+        return res.status(404).send(''); 
+    }
 
-    // --- ACCIÓN: REGISTRO ---
+    const { action, nickname, password, license, keyExpired } = req.body;
+
     if (action === "register") {
-        const exists = usersDB.find(u => u.username === username);
-        if (exists) return res.status(400).json({ message: "Usuario ya existe" });
+        const exists = usersDB.find(u => u.nickname.toLowerCase() === nickname.toLowerCase());
+        if (exists) {
+            return res.status(400).json({ status: "error", message: "User already exists" });
+        }
 
         usersDB.push({
-            username,
+            nickname,
             password,
-            junkieKey,
-            licencia
+            license
         });
 
-        console.log(`[REGISTRO] Usuario: ${username} guardado.`);
         return res.status(200).json({ status: "success" });
     }
 
-    // --- ACCIÓN: LOGIN ---
     if (action === "login") {
-        const userIndex = usersDB.findIndex(u => u.username === username && u.password === password);
+        const userIndex = usersDB.findIndex(u => u.nickname === nickname && u.password === password);
         
         if (userIndex === -1) {
-            return res.status(401).json({ message: "Credenciales incorrectas" });
+            return res.status(401).json({ message: "Invalid credentials" });
         }
 
-        const userData = usersDB[userIndex];
-
-        // Aquí el script de Roblox debe decirnos si la key es válida
-        // Pero si la API recibe una señal de que la key expiró:
-        if (req.body.keyExpired) {
-            console.log(`[BORRADO] Usuario ${username} eliminado por Key caducada.`);
+        if (keyExpired) {
             usersDB.splice(userIndex, 1);
-            return res.status(410).json({ message: "Key caducada, usuario borrado" });
+            return res.status(410).json({ message: "License expired" });
         }
 
-        return res.status(200).json({ status: "success", junkieKey: userData.junkieKey });
+        return res.status(200).json({ 
+            status: "success", 
+            license: usersDB[userIndex].license 
+        });
     }
 
     res.status(404).send('');
