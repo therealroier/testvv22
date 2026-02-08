@@ -1,9 +1,9 @@
 let usersDB = []; 
 
 const SCRIPTS_BY_GAME = {
-    "135856908115931": "https://raw.githubusercontent.com/therealroier/ScriptDz/refs/heads/main/DUELS",
-    "74084441161738": "https://raw.githubusercontent.com/therealroier/ScriptDz/refs/heads/main/DUELS",
-    "131117978948830": "https://raw.githubusercontent.com/therealroier/ScriptDz/refs/heads/main/DUELS"
+    "135856908115931": "https://raw.githubusercontent.com/therealroier/ScriptDz/heads/main/DUELS",
+    "74084441161738": "https://raw.githubusercontent.com/therealroier/ScriptDz/heads/main/DUELS",
+    "131117978948830": "https://raw.githubusercontent.com/therealroier/ScriptDz/heads/main/DUELS"
 };
 
 module.exports = async (req, res) => {
@@ -14,7 +14,9 @@ module.exports = async (req, res) => {
     if (req.method === 'OPTIONS') return res.status(200).end();
 
     const authHeader = req.headers['authorization'];
-    if (authHeader !== 'Bearer DZisthegoat') return res.status(403).json({ message: "Forbidden" });
+    if (authHeader !== 'Bearer DZisthegoat') {
+        return res.status(403).json({ message: "Forbidden" });
+    }
 
     const { action, nickname, password, license, hwid, placeId, keyExpired } = req.body;
 
