@@ -19,11 +19,13 @@ module.exports = async (req, res) => {
     if (action === "register") {
         const lowerNick = nickname.toLowerCase();
         
-        const userExists = usersDB.find(u => u.nickname.toLowerCase() === lowerNick);
-        if (userExists) return res.status(400).json({ status: "error", message: "UserExists" });
+        if (usersDB.find(u => u.nickname.toLowerCase() === lowerNick)) {
+            return res.status(400).json({ status: "error", message: "UserExists" });
+        }
 
-        const licenseExists = usersDB.find(u => u.license === license);
-        if (licenseExists) return res.status(400).json({ status: "error", message: "LicenseUsed" });
+        if (usersDB.find(u => u.license === license)) {
+            return res.status(400).json({ status: "error", message: "LicenseUsed" });
+        }
         
         usersDB.push({ nickname, password, license });
         return res.status(200).json({ status: "success" });
