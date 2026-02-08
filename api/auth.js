@@ -1,42 +1,41 @@
 module.exports = (req, res) => {
-    // Configuración de CORS
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-    // Manejo de pre-vuelo OPTIONS
     if (req.method === 'OPTIONS') {
         res.status(200).end();
         return;
     }
 
-    // 1. SEGURIDAD: Bloquear cualquier acceso que no sea de Roblox (Navegadores)
+    // BLOQUEO DE NAVEGADORES: Si no es una petición POST de un ejecutor, mostramos 404
     const userAgent = req.headers['user-agent'] || '';
-    const isRoblox = userAgent.includes('Roblox');
-
-    if (!isRoblox || req.method !== 'POST') {
-        // Si alguien entra desde Chrome/Safari, devolvemos un 404 en blanco
+    if (!userAgent.includes('Roblox') && req.method !== 'POST') {
         res.setHeader('Content-Type', 'text/html');
         return res.status(404).send('<html><head><title>404 Not Found</title></head><body></body></html>');
     }
 
-    // 2. EXTRAER DATOS Y CONTRASEÑA
-    const { Username, Key, Licencia, Password } = req.body;
+    if (req.method === 'POST') {
+        const { Username, Key, Licencia, UserPassword } = req.body;
+        const authHeader = req.headers['authorization'];
 
-    // 3. VALIDACIÓN DE CONTRASEÑA MAESTRA (260211!!!)
-    if (Password !== '260211!!!') {
-        console.log("Intento de acceso con contraseña incorrecta.");
-        return res.status(401).json({ status: "error", message: "Unauthorized" });
+        // VALIDACIÓN 1: API KEY (DZisthegoat)
+        if (!authHeader || authHeader !== 'Bearer DZisthegoat') {
+            return res.status(401).json({ status: "error", message: "Invalid API Key" });
+        }
+
+        // VALIDACIÓN 2: PASSWORD DEL USUARIO (260211!!!)
+        if (UserPassword !== '260211!!!') {
+            return res.status(403).json({ status: "error", message: "Wrong Master Password" });
+        }
+
+        console.log("--- NUEVA ENTRADA AUTORIZADA ---");
+        console.log("Usuario:", Username);
+        console.log("Key:", Key);
+        console.log("Licencia:", Licencia);
+
+        res.status(200).json({ status: "success", user: Username });
+    } else {
+        res.status(405).json({ message: "Method Not Allowed" });
     }
-
-    // 4. SI TODO ES CORRECTO, PROCESAR
-    console.log("--- NUEVA ENTRADA AUTORIZADA ---");
-    console.log("Usuario:", Username);
-    console.log("Key:", Key);
-    console.log("Licencia:", Licencia);
-    
-    return res.status(200).json({
-        status: "success",
-        user: Username
-    });
 };
