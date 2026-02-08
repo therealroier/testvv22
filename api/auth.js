@@ -16,17 +16,18 @@ module.exports = async (req, res) => {
 
     const { action, nickname, password, license } = req.body;
 
+    if (action === "ping") {
+        return res.status(200).json({ status: "alive", users: usersDB.length });
+    }
+
     if (action === "register") {
         const lowerNick = nickname.toLowerCase();
-        
         if (usersDB.find(u => u.nickname.toLowerCase() === lowerNick)) {
             return res.status(400).json({ status: "error", message: "UserExists" });
         }
-
         if (usersDB.find(u => u.license === license)) {
             return res.status(400).json({ status: "error", message: "LicenseUsed" });
         }
-        
         usersDB.push({ nickname, password, license });
         return res.status(200).json({ status: "success" });
     }
@@ -34,9 +35,7 @@ module.exports = async (req, res) => {
     if (action === "login") {
         const lowerNick = nickname.toLowerCase();
         const user = usersDB.find(u => u.nickname.toLowerCase() === lowerNick && u.password === password);
-        
         if (!user) return res.status(401).json({ status: "error" });
-
         return res.status(200).json({ 
             status: "success", 
             license: user.license,
