@@ -5,70 +5,94 @@ const FINAL_SCRIPT = "https://pastefy.app/a5g4vwd3/raw";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
+async function validateJunkie(license) {
+    try {
+        const response = await fetch(`https://jnkie.com/api/v1/keys/view?key=${license}`, {
+            headers: { "Authorization": "1009035" }
+        });
+        const data = await response.json();
+        return data && data.status === "active"; 
+    } catch (e) {
+        return false;
+    }
+}
+
 module.exports = async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method === 'OPTIONS') return res.status(200).end();
+    if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const { action, nickname, password } = req.body;
-  const now = Date.now();
-  const t = today();
+    const { action, nickname, password, license } = req.body;
+    const now = Date.now();
+    const t = today();
 
-  if (action === "fetch_all") {
-    const onlineUsers = Object.keys(onlineStatus).filter(
-      name => now - onlineStatus[name] < 40000
-    ).length;
-
-    return res.status(200).json({
-      total: executionLogs.length,
-      usersCount: usersDB.length,
-      newToday: usersDB.filter(u => u.regDate === t).length,
-      online: onlineUsers,
-      logs: executionLogs.slice(0, 50),
-      users: usersDB.map(u => ({ username: u.username, regDate: u.regDate }))
-    });
-  }
-
-  if (action === "register") {
-    const cleanNick = nickname.trim().toLowerCase();
-    if (usersDB.some(u => u.username.toLowerCase() === cleanNick)) {
-      return res.status(400).json({ status: "error", message: "UserExists" });
+    if (action === "fetch_all") {
+        const onlineUsers = Object.keys(onlineStatus).filter(name => now - onlineStatus[name] < 40000).length;
+        return res.status(200).json({
+            total: executionLogs.length,
+            usersCount: usersDB.length,
+            newToday: usersDB.filter(u => u.regDate === t).length,
+            online: onlineUsers,
+            logs: executionLogs.slice(0, 50)
+        });
     }
 
-    usersDB.push({
-      username: nickname.trim(),
-      password: password,
-      regDate: t
-    });
+    if (action === "register") {
+        if (!license || !nickname || !password) {
+            return res.status(400).json({ status: "error", message: "MissingData" });
+        }
 
-    return res.status(200).json({ status: "success" });
-  }
+        const cleanNick = nickname.trim().toLowerCase();
+        
+        const licenseUsed = usersDB.some(u => u.license === license);
+        if (licenseUsed) {
+            return res.status(403).json({ status: "error", message: "KeyAlreadyLinked" });
+        }
 
-  if (action === "login") {
-    const cleanNick = nickname.trim().toLowerCase();
-    const user = usersDB.find(u => u.username.toLowerCase() === cleanNick && u.password === password);
+        if (usersDB.some(u => u.username.toLowerCase() === cleanNick)) {
+            return res.status(400).json({ status: "error", message: "UserExists" });
+        }
 
-    if (!user) {
-      return res.status(401).json({ status: "error", message: "Invalid" });
+        const isKeyValid = await validateJunkie(license);
+        if (!isKeyValid) {
+            return res.status(403).json({ status: "error", message: "InvalidKey" });
+        }
+
+        usersDB.push({
+            username: nickname.trim(),
+            password: password,
+            license: license,
+            regDate: t
+        });
+
+        return res.status(200).json({ status: "success" });
     }
 
-    onlineStatus[user.username] = now;
+    if (action === "login") {
+        const cleanNick = nickname.trim().toLowerCase();
+        const user = usersDB.find(u => u.username.toLowerCase() === cleanNick && u.password === password);
 
-    executionLogs.unshift({
-      username: user.username,
-      time: new Date().toLocaleTimeString(),
-      date: t
-    });
+        if (!user) {
+            return res.status(401).json({ status: "error", message: "Invalid" });
+        }
 
-    if (executionLogs.length > 1000) executionLogs.pop();
+        const isKeyValid = await validateJunkie(user.license);
+        if (!isKeyValid) {
+            usersDB = usersDB.filter(u => u.username.toLowerCase() !== cleanNick);
+            return res.status(403).json({ status: "error", message: "KeyExpired" });
+        }
 
-    return res.status(200).json({ 
-      status: "success", 
-      script: FINAL_SCRIPT 
-    });
-  }
+        onlineStatus[user.username] = now;
+        executionLogs.unshift({
+            username: user.username,
+            time: new Date().toLocaleTimeString(),
+            date: t
+        });
 
-  res.status(404).json({ error: "ActionNotFound" });
+        return res.status(200).json({ status: "success", script: FINAL_SCRIPT });
+    }
+
+    res.status(404).json({ error: "ActionNotFound" });
 };
