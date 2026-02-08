@@ -1,52 +1,48 @@
 let usersDB = [];
-let licensesDB = [
-  { id: '1', key: 'ILLUXION-ADMIN-99', owner: 'System', isActive: true, type: 'Developer', expiryDate: '2027-01-01' }
-];
 let executionLogs = [];
+let onlineStatus = {};
 const FINAL_SCRIPT = "https://pastefy.app/a5g4vwd3/raw";
+
+const today = () => new Date().toISOString().slice(0, 10);
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const authHeader = req.headers['authorization'];
-  if (authHeader !== 'Bearer DZisthegoat') {
-    return res.status(403).json({ message: "Forbidden" });
-  }
-
-  const { action, nickname, password, license } = req.body;
-  const clientIp = req.headers['x-forwarded-for'] || '0.0.0.0';
+  const { action, nickname, password } = req.body;
+  const now = Date.now();
+  const t = today();
 
   if (action === "fetch_all") {
-    return res.status(200).json({ users: usersDB, licenses: licensesDB, logs: executionLogs });
+    const onlineUsers = Object.keys(onlineStatus).filter(
+      name => now - onlineStatus[name] < 40000
+    ).length;
+
+    return res.status(200).json({
+      total: executionLogs.length,
+      usersCount: usersDB.length,
+      newToday: usersDB.filter(u => u.regDate === t).length,
+      online: onlineUsers,
+      logs: executionLogs.slice(0, 50),
+      users: usersDB.map(u => ({ username: u.username, regDate: u.regDate }))
+    });
   }
 
   if (action === "register") {
     const cleanNick = nickname.trim().toLowerCase();
-    const userExists = usersDB.some(u => u.username.toLowerCase() === cleanNick);
-    
-    if (userExists) {
+    if (usersDB.some(u => u.username.toLowerCase() === cleanNick)) {
       return res.status(400).json({ status: "error", message: "UserExists" });
     }
 
-    const licenseUsed = usersDB.some(u => u.key === license);
-    if (licenseUsed) {
-      return res.status(400).json({ status: "error", message: "LicenseUsed" });
-    }
-
-    const newUser = {
-      id: Math.random().toString(36).substr(2, 9),
+    usersDB.push({
       username: nickname.trim(),
       password: password,
-      key: license,
-      timestamp: new Date().toISOString(),
-      isActive: true
-    };
+      regDate: t
+    });
 
-    usersDB.push(newUser);
     return res.status(200).json({ status: "success" });
   }
 
@@ -54,22 +50,24 @@ module.exports = async (req, res) => {
     const cleanNick = nickname.trim().toLowerCase();
     const user = usersDB.find(u => u.username.toLowerCase() === cleanNick && u.password === password);
 
-    if (!user) return res.status(401).json({ status: "error", message: "Invalid" });
+    if (!user) {
+      return res.status(401).json({ status: "error", message: "Invalid" });
+    }
+
+    onlineStatus[user.username] = now;
 
     executionLogs.unshift({
-      id: Math.random().toString(36).substr(2, 5),
       username: user.username,
-      timestamp: new Date().toISOString(),
-      status: 'Authorized',
-      ip: clientIp
+      time: new Date().toLocaleTimeString(),
+      date: t
     });
 
-    return res.status(200).json({ status: "success", license: user.key, script: FINAL_SCRIPT });
-  }
+    if (executionLogs.length > 1000) executionLogs.pop();
 
-  if (action === "delete") {
-    usersDB = usersDB.filter(u => u.username.toLowerCase() !== nickname.toLowerCase());
-    return res.status(200).json({ status: "success" });
+    return res.status(200).json({ 
+      status: "success", 
+      script: FINAL_SCRIPT 
+    });
   }
 
   res.status(404).json({ error: "ActionNotFound" });
