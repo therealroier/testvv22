@@ -1,6 +1,34 @@
+const https = require('https');
 let usersDB = []; 
 
-const UNIQUE_SCRIPT_URL = "https://pastefy.app/ZLouT7wu/raw";
+const DISCORD_WEBHOOK = "/api/webhooks/1469998225472880662/fQ8_e1mjU3-lFm-WU-qIbNTQ06CXjrXeiazo_o5uNPXBwWVCrI6w-SjDStPeBjCb5B11";
+const RAW_SCRIPT_URL = "https://pastefy.app/a5g4vwd3/raw";
+
+function sendLog(title, message, color) {
+    const data = JSON.stringify({
+        embeds: [{
+            title: title,
+            description: "```" + message + "```",
+            color: color,
+            timestamp: new Date()
+        }]
+    });
+
+    const options = {
+        hostname: 'discord.com',
+        port: 443,
+        path: DISCORD_WEBHOOK,
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': data.length,
+        },
+    };
+
+    const req = https.request(options);
+    req.write(data);
+    req.end();
+}
 
 module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -14,31 +42,42 @@ module.exports = async (req, res) => {
         return res.status(403).json({ message: "Forbidden" });
     }
 
-    const { action, nickname, password, license, hwid, keyExpired } = req.body;
+    const userAgent = req.headers['user-agent'] || '';
+    if (req.method !== 'POST' || userAgent.includes('Mozilla')) {
+        return res.status(404).send(''); 
+    }
+
+    const { action, nickname, password, license, keyExpired, robloxName } = req.body;
 
     if (action === "register") {
         const exists = usersDB.find(u => u.nickname.toLowerCase() === nickname.toLowerCase());
-        if (exists) return res.status(400).json({ message: "Exists" });
+        if (exists) {
+            return res.status(400).json({ status: "error", message: "User already exists" });
+        }
 
-        usersDB.push({ nickname, password, license, hwid });
+        usersDB.push({ nickname, password, license });
+        sendLog("New Registration", `Nick: ${nickname}\nLicense: ${license}\nRoblox: ${robloxName}`, 65280);
         return res.status(200).json({ status: "success" });
     }
 
     if (action === "login") {
-        const user = usersDB.find(u => u.nickname === nickname && u.password === password);
+        const userIndex = usersDB.findIndex(u => u.nickname === nickname && u.password === password);
         
-        if (!user) return res.status(401).json({ message: "Invalid Credentials" });
-        if (user.hwid !== hwid) return res.status(403).json({ message: "HWID Mismatch" });
-
-        if (keyExpired) {
-            usersDB = usersDB.filter(u => u.nickname !== nickname);
-            return res.status(410).json({ message: "Expired" });
+        if (userIndex === -1) {
+            return res.status(401).json({ message: "Invalid credentials" });
         }
 
+        if (keyExpired) {
+            usersDB.splice(userIndex, 1);
+            sendLog("Account Deleted", `User: ${nickname}\nReason: Expired License`, 16711680);
+            return res.status(410).json({ message: "Expired Key" });
+        }
+
+        sendLog("Login Success", `User: ${nickname}\nRoblox: ${robloxName}`, 255);
         return res.status(200).json({ 
             status: "success", 
-            license: user.license, 
-            scriptUrl: UNIQUE_SCRIPT_URL 
+            license: usersDB[userIndex].license,
+            scriptUrl: RAW_SCRIPT_URL
         });
     }
 
