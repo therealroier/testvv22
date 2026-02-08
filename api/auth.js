@@ -1,6 +1,7 @@
 let usersDB = []; 
 
-const RAW_SCRIPT_URL = "https://pastefy.app/a5g4vwd3/raw";
+// Aquí pon el link directo al script que quieres que se ejecute siempre
+const FINAL_SCRIPT_URL = "https://pastefy.app/a5g4vwd3/raw";
 
 module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -16,49 +17,27 @@ module.exports = async (req, res) => {
 
     const { action, nickname, password, license, keyExpired } = req.body;
 
-    if (!nickname || !password) {
-        return res.status(400).json({ message: "Missing data" });
-    }
-
-    const lowerNick = nickname.toLowerCase();
-
     if (action === "register") {
-        const userExists = usersDB.find(u => u.nickname.toLowerCase() === lowerNick);
-        
-        if (userExists) {
-            return res.status(400).json({ status: "error", message: "User already exists" });
-        }
-
-        usersDB.push({ 
-            nickname: nickname, 
-            password: password, 
-            license: license 
-        });
-        
+        const exists = usersDB.find(u => u.nickname.toLowerCase() === nickname.toLowerCase());
+        if (exists) return res.status(400).json({ status: "error" });
+        usersDB.push({ nickname, password, license });
         return res.status(200).json({ status: "success" });
     }
 
     if (action === "login") {
-        const userIndex = usersDB.findIndex(u => 
-            u.nickname.toLowerCase() === lowerNick && 
-            u.password === password
-        );
-        
-        if (userIndex === -1) {
-            return res.status(401).json({ message: "Invalid credentials" });
-        }
+        const user = usersDB.find(u => u.nickname.toLowerCase() === nickname.toLowerCase() && u.password === password);
+        if (!user) return res.status(401).json({ message: "Invalid" });
 
         if (keyExpired) {
-            usersDB.splice(userIndex, 1);
-            return res.status(410).json({ message: "Expired Key" });
+            usersDB = usersDB.filter(u => u.nickname.toLowerCase() !== nickname.toLowerCase());
+            return res.status(410).json({ message: "Expired" });
         }
 
         return res.status(200).json({ 
             status: "success", 
-            license: usersDB[userIndex].license,
-            scriptUrl: RAW_SCRIPT_URL
+            license: user.license,
+            scriptUrl: FINAL_SCRIPT_URL
         });
     }
-
     res.status(404).send('');
 };
