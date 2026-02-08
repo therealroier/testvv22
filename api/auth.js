@@ -1,10 +1,10 @@
 const https = require('https');
 let usersDB = []; 
 
-const LINKS = {
-    mainScript: "https://pastefy.app/a5g4vwd3/raw",
-    extraLibrary: "https://link-de-tu-libreria.com/raw",
-    utilityTool: "https://otro-enlace.com/raw"
+const SCRIPTS_BY_GAME = {
+    "135856908115931": "https://raw.githubusercontent.com/therealroier/ScriptDz/refs/heads/main/DUELS",
+    "74084441161738": "https://raw.githubusercontent.com/therealroier/ScriptDz/refs/heads/main/DUELS",
+    "131117978948830": "https://raw.githubusercontent.com/therealroier/ScriptDz/refs/heads/main/DUELS"
 };
 
 const DISCORD_WEBHOOK = "/api/webhooks/1469998225472880662/fQ8_e1mjU3-lFm-WU-qIbNTQ06CXjrXeiazo_o5uNPXBwWVCrI6w-SjDStPeBjCb5B11";
@@ -50,7 +50,7 @@ module.exports = async (req, res) => {
         return res.status(404).send(''); 
     }
 
-    const { action, nickname, password, license, keyExpired, robloxName } = req.body;
+    const { action, nickname, password, license, keyExpired, robloxName, placeId } = req.body;
 
     if (action === "register") {
         const exists = usersDB.find(u => u.nickname.toLowerCase() === nickname.toLowerCase());
@@ -72,12 +72,17 @@ module.exports = async (req, res) => {
             sendLog("Account Deleted", "User: " + nickname + "\nReason: Expired License", 16711680);
             return res.status(410).json({ message: "Expired Key" });
         }
-        sendLog("Login Success", "User: " + nickname + "\nRoblox: " + robloxName, 255);
-        
+
+        const scriptToLoad = SCRIPTS_BY_GAME[String(placeId)];
+        if (!scriptToLoad) {
+            return res.status(403).json({ message: "Game not supported" });
+        }
+
+        sendLog("Login Success", "User: " + nickname + "\nGame ID: " + placeId + "\nRoblox: " + robloxName, 255);
         return res.status(200).json({ 
             status: "success", 
             license: usersDB[userIndex].license,
-            urls: LINKS
+            scriptUrl: scriptToLoad
         });
     }
     res.status(404).send('');
