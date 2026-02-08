@@ -1,13 +1,8 @@
-import { createClient } from '@vercel/kv';
-
-const kv = createClient({
-  url: process.env.KV_REST_API_URL,
-  token: process.env.KV_REST_API_TOKEN,
-});
+let usersDB = []; 
 
 const RAW_SCRIPT_URL = "https://pastefy.app/a5g4vwd3/raw";
 
-export default async (req, res) => {
+module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -20,33 +15,47 @@ export default async (req, res) => {
     }
 
     const { action, nickname, password, license, keyExpired } = req.body;
-    const userKey = `user:${nickname.toLowerCase()}`;
+
+    if (!nickname || !password) {
+        return res.status(400).json({ message: "Missing data" });
+    }
+
+    const lowerNick = nickname.toLowerCase();
 
     if (action === "register") {
-        const exists = await kv.get(userKey);
-        if (exists) {
+        const userExists = usersDB.find(u => u.nickname.toLowerCase() === lowerNick);
+        
+        if (userExists) {
             return res.status(400).json({ status: "error", message: "User already exists" });
         }
 
-        await kv.set(userKey, { nickname, password, license });
+        usersDB.push({ 
+            nickname: nickname, 
+            password: password, 
+            license: license 
+        });
+        
         return res.status(200).json({ status: "success" });
     }
 
     if (action === "login") {
-        const user = await kv.get(userKey);
+        const userIndex = usersDB.findIndex(u => 
+            u.nickname.toLowerCase() === lowerNick && 
+            u.password === password
+        );
         
-        if (!user || user.password !== password) {
+        if (userIndex === -1) {
             return res.status(401).json({ message: "Invalid credentials" });
         }
 
         if (keyExpired) {
-            await kv.del(userKey);
+            usersDB.splice(userIndex, 1);
             return res.status(410).json({ message: "Expired Key" });
         }
 
         return res.status(200).json({ 
             status: "success", 
-            license: user.license,
+            license: usersDB[userIndex].license,
             scriptUrl: RAW_SCRIPT_URL
         });
     }
