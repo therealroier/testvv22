@@ -19,9 +19,8 @@ module.exports = async (req, res) => {
     if (action === "register") {
         const lowerNick = nickname.toLowerCase();
         const exists = usersDB.find(u => u.nickname.toLowerCase() === lowerNick);
-        if (exists) {
-            return res.status(400).json({ status: "error", message: "Exists" });
-        }
+        if (exists) return res.status(400).json({ status: "error" });
+        
         usersDB.push({ nickname, password, license });
         return res.status(200).json({ status: "success" });
     }
@@ -30,9 +29,7 @@ module.exports = async (req, res) => {
         const lowerNick = nickname.toLowerCase();
         const user = usersDB.find(u => u.nickname.toLowerCase() === lowerNick && u.password === password);
         
-        if (!user) {
-            return res.status(401).json({ status: "error", message: "Not Found" });
-        }
+        if (!user) return res.status(401).json({ status: "error" });
 
         return res.status(200).json({ 
             status: "success", 
@@ -44,7 +41,7 @@ module.exports = async (req, res) => {
     if (action === "delete") {
         const lowerNick = nickname.toLowerCase();
         usersDB = usersDB.filter(u => u.nickname.toLowerCase() !== lowerNick);
-        return res.status(200).json({ status: "success", message: "User Removed" });
+        return res.status(200).json({ status: "success" });
     }
 
     res.status(404).send('');
