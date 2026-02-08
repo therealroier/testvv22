@@ -14,12 +14,15 @@ module.exports = async (req, res) => {
 
     const { action, nickname, password, license, keyExpired } = req.body;
 
+    if (action === "ping") {
+        return res.status(200).json({ status: "alive" });
+    }
+
     if (action === "register") {
         const exists = usersDB.find(u => u.nickname.toLowerCase() === nickname.toLowerCase());
         if (exists) {
-            return res.status(400).json({ status: "error", message: "User already exists" });
+            return res.status(400).json({ status: "error", message: "Exists" });
         }
-
         usersDB.push({ nickname, password, license });
         return res.status(200).json({ status: "success" });
     }
@@ -28,12 +31,12 @@ module.exports = async (req, res) => {
         const userIndex = usersDB.findIndex(u => u.nickname.toLowerCase() === nickname.toLowerCase() && u.password === password);
         
         if (userIndex === -1) {
-            return res.status(401).json({ status: "error", message: "Invalid credentials or DB Reset" });
+            return res.status(401).json({ status: "error", message: "Not Found" });
         }
 
-        if (keyExpired) {
+        if (keyExpired === true) {
             usersDB.splice(userIndex, 1);
-            return res.status(410).json({ status: "expired", message: "Key removed from DB" });
+            return res.status(200).json({ status: "deleted" });
         }
 
         return res.status(200).json({ 
@@ -41,6 +44,5 @@ module.exports = async (req, res) => {
             license: usersDB[userIndex].license 
         });
     }
-
-    res.status(404).json({ status: "error", message: "Endpoint not found" });
+    res.status(404).send('');
 };
