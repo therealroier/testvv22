@@ -1,5 +1,7 @@
 let usersDB = []; 
 
+const FINAL_SCRIPT = "https://pastefy.app/a5g4vwd3/raw";
+
 module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -12,11 +14,7 @@ module.exports = async (req, res) => {
         return res.status(403).json({ message: "Forbidden" });
     }
 
-    const { action, nickname, password, license, forceDelete } = req.body;
-
-    if (action === "ping") {
-        return res.status(200).json({ status: "alive" });
-    }
+    const { action, nickname, password, license } = req.body;
 
     if (action === "register") {
         const lowerNick = nickname.toLowerCase();
@@ -30,21 +28,24 @@ module.exports = async (req, res) => {
 
     if (action === "login") {
         const lowerNick = nickname.toLowerCase();
-        const userIndex = usersDB.findIndex(u => u.nickname.toLowerCase() === lowerNick && u.password === password);
+        const user = usersDB.find(u => u.nickname.toLowerCase() === lowerNick && u.password === password);
         
-        if (userIndex === -1) {
+        if (!user) {
             return res.status(401).json({ status: "error", message: "Not Found" });
-        }
-
-        if (forceDelete) {
-            usersDB.splice(userIndex, 1);
-            return res.status(200).json({ status: "deleted" });
         }
 
         return res.status(200).json({ 
             status: "success", 
-            license: usersDB[userIndex].license 
+            license: user.license,
+            script: FINAL_SCRIPT
         });
     }
+
+    if (action === "delete") {
+        const lowerNick = nickname.toLowerCase();
+        usersDB = usersDB.filter(u => u.nickname.toLowerCase() !== lowerNick);
+        return res.status(200).json({ status: "success", message: "User Removed" });
+    }
+
     res.status(404).send('');
 };
