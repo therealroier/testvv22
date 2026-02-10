@@ -59,7 +59,7 @@ module.exports = async (req, res) => {
 
         if (!user) return res.status(401).json({ status: "error" });
         await supabase.from('whitelist').update({ license: license, log: `Renewed at ${timestamp}` }).eq('id', user.id);
-        return res.status(200).json({ status: "xd" });
+        return res.status(200).json({ status: "success" });
     }
 
     if (action === "reset") {
