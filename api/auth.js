@@ -1,7 +1,7 @@
 const { createClient } = require('@supabase/supabase-js');
 
 const SUPABASE_URL = 'https://fnngvqinfvrbudsecoru.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZubmd2cWluFnZyYnVkc2Vjb3J1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA2OTI5MTYsImV4cCI6MjA4NjI2ODkxNn0.PlMtd7_UJCIJEg35ioVdiOYghBN_clVrhjdMaYT5JJ4';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZubmd2cWluZnZyYnVkc2Vjb3J1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA2OTI5MTYsImV4cCI6MjA4NjI2ODkxNn0.PlMtd7_UJCIJEg35ioVdiOYghBN_clVrhjdMaYT5JJ4';
 const FINAL_SCRIPT = "https://pastefy.app/a5g4vwd3/raw";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -14,13 +14,16 @@ module.exports = async (req, res) => {
     if (req.method === 'OPTIONS') return res.status(200).end();
 
     const { action, nickname, password, license, client } = req.body;
-    const timestamp = new Date().toLocaleString();
+    const timestamp = new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' });
 
     if (action === "register") {
-        // Verifica si la cuenta de Roblox ya tiene un Nickname registrado
+        // 1. Verificar si el usuario de Roblox (client) ya tiene una cuenta vinculada
         const { data: existingClient } = await supabase.from('whitelist').select('username').eq('client', client).single();
-        if (existingClient) return res.status(400).json({ status: "error", message: "CLIENT ALREADY LINKED" });
+        if (existingClient) {
+            return res.status(400).json({ status: "error", message: "CLIENT ALREADY LINKED" });
+        }
 
+        // 2. Intentar registrar el nuevo nickname
         const { error } = await supabase.from('whitelist').insert([{ 
             username: nickname, 
             password: password, 
@@ -29,7 +32,9 @@ module.exports = async (req, res) => {
             log: `Registered at ${timestamp}` 
         }]);
         
-        if (error) return res.status(400).json({ status: "error" });
+        if (error) {
+            return res.status(400).json({ status: "error", message: "NICKNAME TAKEN" });
+        }
         return res.status(200).json({ status: "success" });
     }
 
@@ -42,9 +47,7 @@ module.exports = async (req, res) => {
 
         if (!user) return res.status(401).json({ status: "error" });
 
-        // Actualiza el log de última conexión
         await supabase.from('whitelist').update({ log: `Last login: ${timestamp}` }).eq('id', user.id);
-        
         return res.status(200).json({ status: "success", license: user.license, script: FINAL_SCRIPT });
     }
 
