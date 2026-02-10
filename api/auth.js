@@ -32,7 +32,7 @@ module.exports = async (req, res) => {
         }]);
         
         if (error) {
-            return res.status(400).json({ status: "error", message: "Username Taken" });
+            return res.status(400).json({ status: "error", message: "Usernme Already Exist" });
         }
         return res.status(200).json({ status: "success" });
     }
