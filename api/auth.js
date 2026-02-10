@@ -16,14 +16,14 @@ module.exports = async (req, res) => {
     const { action, nickname, password, license, rid } = req.body;
 
     if (action === "register") {
-        // 1. Verificar si el Roblox ID ya está en uso
-        const { data: existingHWID } = await supabase.from('whitelist').select('username').eq('hwid', rid).single();
-        if (existingHWID) return res.status(400).json({ status: "error", message: `Este Roblox ID ya tiene la cuenta: ${existingHWID.username}` });
+        // Verificar si el ID de Roblox ya está registrado
+        const { data: checkHWID } = await supabase.from('whitelist').select('username').eq('hwid', rid).single();
+        if (checkHWID) {
+            return res.status(400).json({ status: "error", message: "HWID ALREADY LINKED" });
+        }
 
-        // 2. Intentar registrar
         const { error } = await supabase.from('whitelist').insert([{ username: nickname, password, license, hwid: rid }]);
-        if (error) return res.status(400).json({ status: "error", message: "Nickname ya tomado" });
-        
+        if (error) return res.status(400).json({ status: "error", message: "NICKNAME TAKEN" });
         return res.status(200).json({ status: "success" });
     }
 
@@ -36,7 +36,14 @@ module.exports = async (req, res) => {
     if (action === "renew") {
         const { data: user } = await supabase.from('whitelist').select('id').eq('username', nickname).eq('password', password).eq('hwid', rid).single();
         if (!user) return res.status(401).json({ status: "error" });
-        await supabase.from('whitelist').update({ license }).eq('id', user.id);
+        await supabase.from('whitelist').update({ license: license }).eq('id', user.id);
+        return res.status(200).json({ status: "success" });
+    }
+
+    if (action === "reset") {
+        const { data: user } = await supabase.from('whitelist').select('id').eq('username', nickname).eq('password', password).eq('hwid', rid).single();
+        if (!user) return res.status(401).json({ status: "error" });
+        await supabase.from('whitelist').update({ license: "" }).eq('id', user.id);
         return res.status(200).json({ status: "success" });
     }
 
