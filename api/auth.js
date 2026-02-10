@@ -1,7 +1,7 @@
 const { createClient } = require('@supabase/supabase-js');
 
 const SUPABASE_URL = 'https://fnngvqinfvrbudsecoru.supabase.co';
-const SUPABASE_KEY = 'TU_SUPABASE_KEY';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZubmd2cWluZnZyYnVkc2Vjb3J1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA2OTI5MTYsImV4cCI6MjA4NjI2ODkxNn0.PlMtd7_UJCIJEg35ioVdiOYghBN_clVrhjdMaYT5JJ4';
 const FINAL_SCRIPT = "https://pastefy.app/a5g4vwd3/raw";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -32,7 +32,6 @@ module.exports = async (req, res) => {
 
         if (!user) return res.status(401).json({ status: "error" });
 
-        // Marcar como Online
         await supabase.from('whitelist').update({ status: 'Online' }).eq('id', user.id);
         return res.status(200).json({ status: "success", license: user.license, script: FINAL_SCRIPT });
     }
