@@ -1,7 +1,7 @@
 const { createClient } = require('@supabase/supabase-js');
 
 const SUPABASE_URL = 'https://fnngvqinfvrbudsecoru.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZubmd2cWluZnZyYnVkc2Vjb3J1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA2OTI5MTYsImV4cCI6MjA4NjI2ODkxNn0.PlMtd7_UJCIJEg35ioVdiOYghBN_clVrhjdMaYT5JJ4';
+const SUPABASE_KEY = 'TU_SUPABASE_KEY';
 const FINAL_SCRIPT = "https://pastefy.app/a5g4vwd3/raw";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -14,64 +14,31 @@ module.exports = async (req, res) => {
     if (req.method === 'OPTIONS') return res.status(200).end();
 
     const { action, nickname, password, license, client } = req.body;
-    const timestamp = new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' });
 
     if (action === "register") {
-        // 1. Verificar si el usuario de Roblox (client) ya tiene una cuenta vinculada
-        const { data: existingClient } = await supabase.from('whitelist').select('username').eq('client', client).single();
-        if (existingClient) {
-            return res.status(400).json({ status: "error", message: "CLIENT ALREADY LINKED" });
-        }
+        const { data: existing } = await supabase.from('whitelist').select('username').eq('client', client).single();
+        if (existing) return res.status(400).json({ status: "error", message: "CLIENT ALREADY LINKED" });
 
-        // 2. Intentar registrar el nuevo nickname
         const { error } = await supabase.from('whitelist').insert([{ 
-            username: nickname, 
-            password: password, 
-            license: license, 
-            client: client, 
-            log: `Registered at ${timestamp}` 
+            username: nickname, password, license, client, status: 'Offline' 
         }]);
-        
-        if (error) {
-            return res.status(400).json({ status: "error", message: "NICKNAME TAKEN" });
-        }
+        if (error) return res.status(400).json({ status: "error", message: "NICKNAME TAKEN" });
         return res.status(200).json({ status: "success" });
     }
 
-    if (action === "login") {
+    if (action === "login" || action === "heartbeat") {
         const { data: user } = await supabase.from('whitelist').select('*')
-            .eq('username', nickname)
-            .eq('password', password)
-            .eq('client', client)
-            .single();
+            .eq('username', nickname).eq('password', password).eq('client', client).single();
 
         if (!user) return res.status(401).json({ status: "error" });
 
-        await supabase.from('whitelist').update({ log: `Last login: ${timestamp}` }).eq('id', user.id);
+        // Marcar como Online
+        await supabase.from('whitelist').update({ status: 'Online' }).eq('id', user.id);
         return res.status(200).json({ status: "success", license: user.license, script: FINAL_SCRIPT });
     }
 
-    if (action === "renew") {
-        const { data: user } = await supabase.from('whitelist').select('id')
-            .eq('username', nickname)
-            .eq('password', password)
-            .eq('client', client)
-            .single();
-
-        if (!user) return res.status(401).json({ status: "error" });
-        await supabase.from('whitelist').update({ license: license, log: `Renewed at ${timestamp}` }).eq('id', user.id);
-        return res.status(200).json({ status: "success" });
-    }
-
-    if (action === "reset") {
-        const { data: user } = await supabase.from('whitelist').select('id')
-            .eq('username', nickname)
-            .eq('password', password)
-            .eq('client', client)
-            .single();
-
-        if (!user) return res.status(401).json({ status: "error" });
-        await supabase.from('whitelist').update({ license: "", log: `Key Reset at ${timestamp}` }).eq('id', user.id);
+    if (action === "logout") {
+        await supabase.from('whitelist').update({ status: 'Offline' }).eq('username', nickname).eq('client', client);
         return res.status(200).json({ status: "success" });
     }
 
