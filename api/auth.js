@@ -20,7 +20,7 @@ module.exports = async (req, res) => {
 
         const { data: existingClient } = await supabase.from('whitelist').select('username').eq('client', client).single();
         if (existingClient) {
-            return res.status(400).json({ status: "error", message: "CLIENT ALREADY LINKED" });
+            return res.status(400).json({ status: "error", message: "You already Have Account" });
         }
 
         const { error } = await supabase.from('whitelist').insert([{ 
