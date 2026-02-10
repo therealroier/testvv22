@@ -33,12 +33,17 @@ module.exports = async (req, res) => {
             .single();
 
         if (error || !user) return res.status(401).json({ status: "error", message: "Auth Failed" });
-        
-        if (user.username !== exactNick) {
-            return res.status(401).json({ status: "error", message: "Case Mismatch" });
-        }
-
+        if (user.username !== exactNick) return res.status(401).json({ status: "error", message: "Case Mismatch" });
         return res.status(200).json({ status: "success", license: user.license, script: FINAL_SCRIPT });
+    }
+
+    if (action === "renew") {
+        const { error } = await supabase
+            .from('whitelist')
+            .update({ license: license })
+            .eq('username', exactNick);
+        if (error) return res.status(500).json({ status: "error", message: error.message });
+        return res.status(200).json({ status: "success" });
     }
 
     res.status(404).json({ message: "Not Found" });
