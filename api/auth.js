@@ -13,16 +13,11 @@ module.exports = async (req, res) => {
 
     if (req.method === 'OPTIONS') return res.status(200).end();
 
-    const authHeader = req.headers['authorization'];
-    if (authHeader !== 'Bearer DZisthegoat') {
-        return res.status(403).json({ message: "error" });
-    }
-
     const { action, nickname, password, license } = req.body;
-    const lowerNick = nickname ? nickname.toLowerCase() : null;
+    const lowerNick = nickname ? nickname.toLowerCase().trim() : null;
 
     if (action === "register") {
-        const { data, error } = await supabase
+        const { error } = await supabase
             .from('whitelist')
             .insert([{ 
                 username: lowerNick, 
@@ -31,8 +26,10 @@ module.exports = async (req, res) => {
             }]);
 
         if (error) {
-            if (error.code === '23505') return res.status(400).json({ status: "error", message: "User or License already exists" });
-            return res.status(500).json({ status: "error", message: error.message });
+            return res.status(400).json({ 
+                status: "error", 
+                message: error.code === '23505' ? "Existente" : error.message 
+            });
         }
         return res.status(200).json({ status: "success" });
     }
@@ -46,7 +43,7 @@ module.exports = async (req, res) => {
             .single();
 
         if (error || !user) {
-            return res.status(401).json({ status: "error", message: "Invalid credentials" });
+            return res.status(401).json({ status: "error", message: "Auth Failed" });
         }
 
         return res.status(200).json({ 
@@ -56,26 +53,5 @@ module.exports = async (req, res) => {
         });
     }
 
-    if (action === "delete") {
-        const { error } = await supabase
-            .from('whitelist')
-            .delete()
-            .eq('username', lowerNick);
-            
-        if (error) return res.status(500).json({ status: "error", message: error.message });
-        return res.status(200).json({ status: "success", message: "User deleted" });
-    }
-
-    if (action === "heartbeat") {
-        const { data, error } = await supabase
-            .from('whitelist')
-            .select('username')
-            .eq('username', lowerNick)
-            .single();
-
-        if (error || !data) return res.status(404).json({ status: "not-found" });
-        return res.status(200).json({ status: "alive" });
-    }
-
-    res.status(404).json({ message: "Action not found" });
+    res.status(404).json({ message: "Not Found" });
 };
