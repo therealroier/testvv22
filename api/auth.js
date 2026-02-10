@@ -27,7 +27,7 @@ module.exports = async (req, res) => {
     }
 
     if (action === "login" || action === "heartbeat") {
-        const { data: user } = await supabase.from('whitelist').select('*')
+        const { data: user } = await supabase.from('whitelist').select('id, license')
             .eq('username', nickname).eq('password', password).eq('client', client).single();
 
         if (!user) return res.status(401).json({ status: "error" });
