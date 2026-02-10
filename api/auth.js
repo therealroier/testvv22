@@ -16,53 +16,27 @@ module.exports = async (req, res) => {
     const { action, nickname, password, license, rid } = req.body;
 
     if (action === "register") {
+        // 1. Verificar si el Roblox ID ya está en uso
+        const { data: existingHWID } = await supabase.from('whitelist').select('username').eq('hwid', rid).single();
+        if (existingHWID) return res.status(400).json({ status: "error", message: `Este Roblox ID ya tiene la cuenta: ${existingHWID.username}` });
 
-        const { error } = await supabase.from('whitelist').insert([{ 
-            username: nickname, 
-            password: password, 
-            license: license, 
-            hwid: rid 
-        }]);
-        if (error) return res.status(400).json({ status: "error" });
+        // 2. Intentar registrar
+        const { error } = await supabase.from('whitelist').insert([{ username: nickname, password, license, hwid: rid }]);
+        if (error) return res.status(400).json({ status: "error", message: "Nickname ya tomado" });
+        
         return res.status(200).json({ status: "success" });
     }
 
     if (action === "login") {
-
-        const { data: user } = await supabase.from('whitelist')
-            .select('*')
-            .eq('username', nickname)
-            .eq('password', password)
-            .eq('hwid', rid)
-            .single();
-
-        if (!user || user.username !== nickname) return res.status(401).json({ status: "error" });
+        const { data: user } = await supabase.from('whitelist').select('*').eq('username', nickname).eq('password', password).eq('hwid', rid).single();
+        if (!user) return res.status(401).json({ status: "error" });
         return res.status(200).json({ status: "success", license: user.license, script: FINAL_SCRIPT });
     }
 
     if (action === "renew") {
-        const { data: user } = await supabase.from('whitelist')
-            .select('id')
-            .eq('username', nickname)
-            .eq('password', password)
-            .eq('hwid', rid)
-            .single();
-
+        const { data: user } = await supabase.from('whitelist').select('id').eq('username', nickname).eq('password', password).eq('hwid', rid).single();
         if (!user) return res.status(401).json({ status: "error" });
         await supabase.from('whitelist').update({ license }).eq('id', user.id);
-        return res.status(200).json({ status: "success" });
-    }
-
-    if (action === "reset") {
-        const { data: user } = await supabase.from('whitelist')
-            .select('id')
-            .eq('username', nickname)
-            .eq('password', password)
-            .eq('hwid', rid)
-            .single();
-
-        if (!user) return res.status(401).json({ status: "error" });
-        await supabase.from('whitelist').update({ license: "" }).eq('id', user.id);
         return res.status(200).json({ status: "success" });
     }
 
