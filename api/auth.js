@@ -1,6 +1,10 @@
-let usersDB = []; 
+const { createClient } = require('@supabase/supabase-js');
 
+const SUPABASE_URL = 'https://fnngvqinfvrbudsecoru.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZubmd2cWluZnZyYnVkc2Vjb3J1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA2OTI5MTYsImV4cCI6MjA4NjI2ODkxNn0.PlMtd7_UJCIJEg35ioVdiOYghBN_clVrhjdMaYT5JJ4';
 const FINAL_SCRIPT = "https://pastefy.app/a5g4vwd3/raw";
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -15,72 +19,63 @@ module.exports = async (req, res) => {
     }
 
     const { action, nickname, password, license } = req.body;
-
-    if (action === "ping") {
-        return res.status(200).json({ 
-            status: "alive", 
-            total_users: usersDB.length 
-        });
-    }
-
-    if (action === "fetch_all") {
-        return res.status(200).json({
-            users: usersDB,
-            config: {
-                total: usersDB.length,
-                lastUpdate: new Date().toISOString()
-            }
-        });
-    }
+    const lowerNick = nickname ? nickname.toLowerCase() : null;
 
     if (action === "register") {
-        const lowerNick = nickname.toLowerCase();
-        if (usersDB.find(u => u.username && u.username.toLowerCase() === lowerNick)) {
-            return res.status(400).json({ status: "error", message: "UserExists" });
+        const { data, error } = await supabase
+            .from('whitelist')
+            .insert([{ 
+                username: lowerNick, 
+                password: password, 
+                license: license 
+            }]);
+
+        if (error) {
+            if (error.code === '23505') return res.status(400).json({ status: "error", message: "User or License already exists" });
+            return res.status(500).json({ status: "error", message: error.message });
         }
-        if (usersDB.find(u => u.key === license)) {
-            return res.status(400).json({ status: "error", message: "LicenseUsed" });
-        }
-        
-        usersDB.push({ 
-            id: Math.random().toString(36).substr(2, 9),
-            username: nickname, 
-            password: password, 
-            key: license, 
-            timestamp: new Date().toISOString(),
-            isActive: true 
-        });
         return res.status(200).json({ status: "success" });
     }
 
     if (action === "login") {
-        const lowerNick = nickname.toLowerCase();
-        const user = usersDB.find(u => u.username.toLowerCase() === lowerNick && u.password === password);
-        
-        if (!user) return res.status(401).json({ status: "error" });
+        const { data: user, error } = await supabase
+            .from('whitelist')
+            .select('*')
+            .eq('username', lowerNick)
+            .eq('password', password)
+            .single();
+
+        if (error || !user) {
+            return res.status(401).json({ status: "error", message: "Invalid credentials" });
+        }
 
         return res.status(200).json({ 
             status: "success", 
-            license: user.key,
+            license: user.license,
             script: FINAL_SCRIPT
         });
     }
 
-    if (action === "heartbeat") {
-        const lowerNick = nickname.toLowerCase();
-        const user = usersDB.find(u => u.username.toLowerCase() === lowerNick);
-        if (user) {
-            user.lastSeen = new Date().toISOString();
-            return res.status(200).json({ status: "kept-alive" });
-        }
-        return res.status(404).json({ status: "not-found" });
-    }
-
     if (action === "delete") {
-        const lowerNick = nickname.toLowerCase();
-        usersDB = usersDB.filter(u => u.username.toLowerCase() !== lowerNick);
-        return res.status(200).json({ status: "success", message: "User cleaned" });
+        const { error } = await supabase
+            .from('whitelist')
+            .delete()
+            .eq('username', lowerNick);
+            
+        if (error) return res.status(500).json({ status: "error", message: error.message });
+        return res.status(200).json({ status: "success", message: "User deleted" });
     }
 
-    res.status(404).send('');
+    if (action === "heartbeat") {
+        const { data, error } = await supabase
+            .from('whitelist')
+            .select('username')
+            .eq('username', lowerNick)
+            .single();
+
+        if (error || !data) return res.status(404).json({ status: "not-found" });
+        return res.status(200).json({ status: "alive" });
+    }
+
+    res.status(404).json({ message: "Action not found" });
 };
