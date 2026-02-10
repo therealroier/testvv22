@@ -14,31 +14,64 @@ module.exports = async (req, res) => {
     if (req.method === 'OPTIONS') return res.status(200).end();
 
     const { action, nickname, password, license, client } = req.body;
-    const now = Math.floor(Date.now() / 1000);
+    const timestamp = new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' });
 
     if (action === "register") {
+        // 1. Verificar si el usuario de Roblox (client) ya tiene una cuenta vinculada
+        const { data: existingClient } = await supabase.from('whitelist').select('username').eq('client', client).single();
+        if (existingClient) {
+            return res.status(400).json({ status: "error", message: "CLIENT ALREADY LINKED" });
+        }
+
+        // 2. Intentar registrar el nuevo nickname
         const { error } = await supabase.from('whitelist').insert([{ 
-            username: nickname, password, license, client, status: 'Offline', last_heartbeat: 0 
+            username: nickname, 
+            password: password, 
+            license: license, 
+            client: client, 
+            log: `Registered at ${timestamp}` 
         }]);
         
         if (error) {
-            return res.status(400).json({ status: "error", message: "USER/ROBLOX TAKEN" });
+            return res.status(400).json({ status: "error", message: "NICKNAME TAKEN" });
         }
         return res.status(200).json({ status: "success" });
     }
 
-    if (action === "login" || action === "heartbeat") {
+    if (action === "login") {
         const { data: user } = await supabase.from('whitelist').select('*')
-            .eq('username', nickname).eq('password', password).eq('client', client).single();
+            .eq('username', nickname)
+            .eq('password', password)
+            .eq('client', client)
+            .single();
 
         if (!user) return res.status(401).json({ status: "error" });
 
-        await supabase.from('whitelist').update({ status: 'Online', last_heartbeat: now }).eq('id', user.id);
+        await supabase.from('whitelist').update({ log: `Last login: ${timestamp}` }).eq('id', user.id);
         return res.status(200).json({ status: "success", license: user.license, script: FINAL_SCRIPT });
     }
 
-    if (action === "logout") {
-        await supabase.from('whitelist').update({ status: 'Offline', last_heartbeat: 0 }).eq('username', nickname).eq('client', client);
+    if (action === "renew") {
+        const { data: user } = await supabase.from('whitelist').select('id')
+            .eq('username', nickname)
+            .eq('password', password)
+            .eq('client', client)
+            .single();
+
+        if (!user) return res.status(401).json({ status: "error" });
+        await supabase.from('whitelist').update({ license: license, log: `Renewed at ${timestamp}` }).eq('id', user.id);
+        return res.status(200).json({ status: "success" });
+    }
+
+    if (action === "reset") {
+        const { data: user } = await supabase.from('whitelist').select('id')
+            .eq('username', nickname)
+            .eq('password', password)
+            .eq('client', client)
+            .single();
+
+        if (!user) return res.status(401).json({ status: "error" });
+        await supabase.from('whitelist').update({ license: "", log: `Key Reset at ${timestamp}` }).eq('id', user.id);
         return res.status(200).json({ status: "success" });
     }
 
