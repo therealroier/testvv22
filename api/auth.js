@@ -13,36 +13,56 @@ module.exports = async (req, res) => {
 
     if (req.method === 'OPTIONS') return res.status(200).end();
 
-    const { action, nickname, password, license } = req.body;
-    const exactNick = nickname ? nickname.trim() : null;
+    const { action, nickname, password, license, rid } = req.body;
 
     if (action === "register") {
-        const { error } = await supabase
-            .from('whitelist')
-            .insert([{ username: exactNick, password: password, license: license }]);
-        if (error) return res.status(400).json({ status: "error", message: "Existente" });
+
+        const { error } = await supabase.from('whitelist').insert([{ 
+            username: nickname, 
+            password: password, 
+            license: license, 
+            hwid: rid 
+        }]);
+        if (error) return res.status(400).json({ status: "error" });
         return res.status(200).json({ status: "success" });
     }
 
     if (action === "login") {
-        const { data: user, error } = await supabase
-            .from('whitelist')
+
+        const { data: user } = await supabase.from('whitelist')
             .select('*')
-            .eq('username', exactNick)
+            .eq('username', nickname)
             .eq('password', password)
+            .eq('hwid', rid)
             .single();
 
-        if (error || !user) return res.status(401).json({ status: "error", message: "Auth Failed" });
-        if (user.username !== exactNick) return res.status(401).json({ status: "error", message: "Case Mismatch" });
+        if (!user || user.username !== nickname) return res.status(401).json({ status: "error" });
         return res.status(200).json({ status: "success", license: user.license, script: FINAL_SCRIPT });
     }
 
     if (action === "renew") {
-        const { error } = await supabase
-            .from('whitelist')
-            .update({ license: license })
-            .eq('username', exactNick);
-        if (error) return res.status(500).json({ status: "error", message: error.message });
+        const { data: user } = await supabase.from('whitelist')
+            .select('id')
+            .eq('username', nickname)
+            .eq('password', password)
+            .eq('hwid', rid)
+            .single();
+
+        if (!user) return res.status(401).json({ status: "error" });
+        await supabase.from('whitelist').update({ license }).eq('id', user.id);
+        return res.status(200).json({ status: "success" });
+    }
+
+    if (action === "reset") {
+        const { data: user } = await supabase.from('whitelist')
+            .select('id')
+            .eq('username', nickname)
+            .eq('password', password)
+            .eq('hwid', rid)
+            .single();
+
+        if (!user) return res.status(401).json({ status: "error" });
+        await supabase.from('whitelist').update({ license: "" }).eq('id', user.id);
         return res.status(200).json({ status: "success" });
     }
 
