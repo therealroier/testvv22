@@ -19,18 +19,8 @@ module.exports = async (req, res) => {
     if (action === "register") {
         const { error } = await supabase
             .from('whitelist')
-            .insert([{ 
-                username: lowerNick, 
-                password: password, 
-                license: license 
-            }]);
-
-        if (error) {
-            return res.status(400).json({ 
-                status: "error", 
-                message: error.code === '23505' ? "Existente" : error.message 
-            });
-        }
+            .insert([{ username: lowerNick, password: password, license: license }]);
+        if (error) return res.status(400).json({ status: "error", message: error.code === '23505' ? "Existente" : error.message });
         return res.status(200).json({ status: "success" });
     }
 
@@ -41,16 +31,17 @@ module.exports = async (req, res) => {
             .eq('username', lowerNick)
             .eq('password', password)
             .single();
+        if (error || !user) return res.status(401).json({ status: "error", message: "Auth Failed" });
+        return res.status(200).json({ status: "success", license: user.license, script: FINAL_SCRIPT });
+    }
 
-        if (error || !user) {
-            return res.status(401).json({ status: "error", message: "Auth Failed" });
-        }
-
-        return res.status(200).json({ 
-            status: "success", 
-            license: user.license,
-            script: FINAL_SCRIPT
-        });
+    if (action === "renew") {
+        const { error } = await supabase
+            .from('whitelist')
+            .update({ license: license })
+            .eq('username', lowerNick);
+        if (error) return res.status(500).json({ status: "error", message: error.message });
+        return res.status(200).json({ status: "success" });
     }
 
     res.status(404).json({ message: "Not Found" });
