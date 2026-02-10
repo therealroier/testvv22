@@ -17,13 +17,12 @@ module.exports = async (req, res) => {
     const timestamp = new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' });
 
     if (action === "register") {
-        // 1. Verificar si el usuario de Roblox (client) ya tiene una cuenta vinculada
+
         const { data: existingClient } = await supabase.from('whitelist').select('username').eq('client', client).single();
         if (existingClient) {
             return res.status(400).json({ status: "error", message: "CLIENT ALREADY LINKED" });
         }
 
-        // 2. Intentar registrar el nuevo nickname
         const { error } = await supabase.from('whitelist').insert([{ 
             username: nickname, 
             password: password, 
