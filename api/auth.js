@@ -14,8 +14,6 @@ module.exports = async (req, res) => {
     if (req.method === 'OPTIONS') return res.status(200).end();
 
     const { action, nickname, password, license } = req.body;
-    
-    // IMPORTANTE: Quitamos .toLowerCase() para que sea exacto
     const exactNick = nickname ? nickname.trim() : null;
 
     if (action === "register") {
@@ -30,13 +28,12 @@ module.exports = async (req, res) => {
         const { data: user, error } = await supabase
             .from('whitelist')
             .select('*')
-            .eq('username', exactNick) // Supabase por defecto es Case Sensitive en .eq()
+            .eq('username', exactNick)
             .eq('password', password)
             .single();
 
         if (error || !user) return res.status(401).json({ status: "error", message: "Auth Failed" });
         
-        // Verificación extra de seguridad en JS para asegurar igualdad exacta
         if (user.username !== exactNick) {
             return res.status(401).json({ status: "error", message: "Case Mismatch" });
         }
