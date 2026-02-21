@@ -17,8 +17,8 @@ module.exports = async (req, res) => {
     const timestamp = new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' });
 
     if (action === "register") {
-
-        const { data: existingClient } = await supabase.from('whitelist').select('username').eq('client', client).single();
+        const { data: existingClient } = await supabase.from('whitelist').select('username').eq('client', client).maybeSingle();
+        
         if (existingClient) {
             return res.status(400).json({ status: "error", message: "You already Have Account" });
         }
@@ -32,19 +32,19 @@ module.exports = async (req, res) => {
         }]);
         
         if (error) {
-            return res.status(400).json({ status: "error", message: "Usernme Already Exist" });
+            return res.status(400).json({ status: "error", message: "Username Already Exist" });
         }
         return res.status(200).json({ status: "success" });
     }
 
     if (action === "login") {
-        const { data: user } = await supabase.from('whitelist').select('*')
+        const { data: user, error } = await supabase.from('whitelist').select('*')
             .eq('username', nickname)
             .eq('password', password)
             .eq('client', client)
-            .single();
+            .maybeSingle();
 
-        if (!user) return res.status(401).json({ status: "error" });
+        if (error || !user) return res.status(401).json({ status: "error" });
 
         await supabase.from('whitelist').update({ log: `Last login: ${timestamp}` }).eq('id', user.id);
         return res.status(200).json({ status: "success", license: user.license, script: FINAL_SCRIPT });
@@ -55,7 +55,7 @@ module.exports = async (req, res) => {
             .eq('username', nickname)
             .eq('password', password)
             .eq('client', client)
-            .single();
+            .maybeSingle();
 
         if (!user) return res.status(401).json({ status: "error" });
         await supabase.from('whitelist').update({ license: license, log: `Renewed at ${timestamp}` }).eq('id', user.id);
@@ -67,7 +67,7 @@ module.exports = async (req, res) => {
             .eq('username', nickname)
             .eq('password', password)
             .eq('client', client)
-            .single();
+            .maybeSingle();
 
         if (!user) return res.status(401).json({ status: "error" });
         await supabase.from('whitelist').update({ license: "", log: `Key Reset at ${timestamp}` }).eq('id', user.id);
